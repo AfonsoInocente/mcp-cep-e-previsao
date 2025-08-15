@@ -149,7 +149,7 @@ const createWorkflowPrincipalInteligente = (env: Env) => {
       mensagem_final: z.string(),
     }),
   })
-    .then(decisorStep)
+    .then(decisorStep as any)
     .map(async ({ inputData }) => {
       return {
         mensagem_inicial: inputData.mensagem_amigavel,

@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 import { useSistemaInteligente } from "../lib/hooks";
 import { Loader2, MapPin, Cloud, Search } from "lucide-react";
 
@@ -41,7 +47,8 @@ export function CepConsultor() {
             Consulta Inteligente de CEP e Previsão
           </CardTitle>
           <CardDescription>
-            Digite sua consulta e eu decido automaticamente se você quer apenas o endereço ou também a previsão do tempo!
+            Digite sua consulta e eu decido automaticamente se você quer apenas
+            o endereço ou também a previsão do tempo!
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -53,7 +60,7 @@ export function CepConsultor() {
               <Input
                 id="entrada"
                 type="text"
-                placeholder="Ex: CEP 01310-100, Como está o clima em São Paulo?, Previsão do tempo para 01310-100"
+                placeholder="Ex: 01310-100, Como está o clima em São Paulo?, Quero saber o endereço, Previsão do tempo"
                 value={entrada}
                 onChange={(e) => setEntrada(e.target.value)}
                 disabled={isLoading}
@@ -93,10 +100,40 @@ export function CepConsultor() {
           {/* Mensagem Inicial */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">🤖 Análise Inteligente</CardTitle>
+              <CardTitle className="text-lg">
+                {resultado.acao_executada === "SOLICITAR_CEP" ||
+                resultado.acao_executada === "SOLICITAR_LOCAL"
+                  ? "🤖 Pergunta"
+                  : "🤖 Análise Inteligente"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">{resultado.mensagem_inicial}</p>
+              <div
+                className={`p-4 rounded-lg ${
+                  resultado.acao_executada === "SOLICITAR_CEP" ||
+                  resultado.acao_executada === "SOLICITAR_LOCAL"
+                    ? "bg-blue-50 border border-blue-200"
+                    : "bg-gray-50 border border-gray-200"
+                }`}
+              >
+                <p
+                  className={`${
+                    resultado.acao_executada === "SOLICITAR_CEP" ||
+                    resultado.acao_executada === "SOLICITAR_LOCAL"
+                      ? "text-blue-800 font-medium"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {resultado.mensagem_inicial}
+                </p>
+                {(resultado.acao_executada === "SOLICITAR_CEP" ||
+                  resultado.acao_executada === "SOLICITAR_LOCAL") && (
+                  <p className="text-sm text-blue-600 mt-2">
+                    💡 Digite sua resposta no campo acima e clique em
+                    "Consultar" novamente!
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -112,23 +149,37 @@ export function CepConsultor() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">CEP</p>
-                    <p className="text-lg font-semibold">{resultado.dados_cep.cep}</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      CEP
+                    </p>
+                    <p className="text-lg font-semibold">
+                      {resultado.dados_cep.cep}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Estado</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Estado
+                    </p>
                     <p className="text-lg">{resultado.dados_cep.state}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Cidade</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Cidade
+                    </p>
                     <p className="text-lg">{resultado.dados_cep.city}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Bairro</p>
-                    <p className="text-lg">{resultado.dados_cep.neighborhood}</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Bairro
+                    </p>
+                    <p className="text-lg">
+                      {resultado.dados_cep.neighborhood}
+                    </p>
                   </div>
                   <div className="md:col-span-2">
-                    <p className="text-sm font-medium text-muted-foreground">Rua</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Rua
+                    </p>
                     <p className="text-lg">{resultado.dados_cep.street}</p>
                   </div>
                 </div>
@@ -145,31 +196,38 @@ export function CepConsultor() {
                   Previsão do Tempo
                 </CardTitle>
                 <CardDescription>
-                  {resultado.dados_clima.cidade}, {resultado.dados_clima.estado} - 
-                  Atualizado em {new Date(resultado.dados_clima.atualizado_em).toLocaleString('pt-BR')}
+                  {resultado.dados_clima.cidade}, {resultado.dados_clima.estado}{" "}
+                  - Atualizado em{" "}
+                  {new Date(resultado.dados_clima.atualizado_em).toLocaleString(
+                    "pt-BR"
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {resultado.dados_clima.clima.map((dia: any, index: number) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <p className="font-semibold text-sm">
-                        {new Date(dia.data).toLocaleDateString('pt-BR', { 
-                          weekday: 'short', 
-                          day: 'numeric', 
-                          month: 'short' 
-                        })}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">{dia.condicao_desc}</p>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-lg font-bold">{dia.min}°</span>
-                        <span className="text-lg">{dia.max}°</span>
+                  {resultado.dados_clima.clima.map(
+                    (dia: any, index: number) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <p className="font-semibold text-sm">
+                          {new Date(dia.data).toLocaleDateString("pt-BR", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {dia.condicao_desc}
+                        </p>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-lg font-bold">{dia.min}°</span>
+                          <span className="text-lg">{dia.max}°</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          UV: {dia.indice_uv}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        UV: {dia.indice_uv}
-                      </p>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -179,11 +237,11 @@ export function CepConsultor() {
           <Card>
             <CardContent className="pt-6">
               <div className="prose prose-sm max-w-none">
-                <div 
+                <div
                   className="whitespace-pre-line text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ 
-                    __html: resultado.mensagem_final.replace(/\n/g, '<br>') 
-                  }} 
+                  dangerouslySetInnerHTML={{
+                    __html: resultado.mensagem_final.replace(/\n/g, "<br>"),
+                  }}
                 />
               </div>
             </CardContent>

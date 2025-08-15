@@ -269,16 +269,26 @@ export const useSistemaInteligente = () => {
           // Usa a cidade extraída pela IA ou extrai da entrada
           let cidade = decisao.cidade_extraida;
           if (!cidade) {
-            // Tenta extrair cidade da entrada do usuário
+            // Tenta extrair cidade da entrada do usuário com regex mais abrangente
             const cidadeMatch = entrada.entrada_usuario.match(
-              /(?:em|para|de)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,)/i
+              /(?:em|para|de|sobre\s+o?\s*tempo\s+em|clima\s+em|tempo\s+em)\s*([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.|$)/i
             );
             if (cidadeMatch) {
               cidade = cidadeMatch[1].trim();
             } else {
-              throw new Error(
-                "CITY_NOT_FOUND: Nenhuma cidade encontrada na consulta. Digite uma cidade válida (exemplo: 'como está o clima em São Paulo?')."
+              // Se não encontrou com regex, tenta extrair a última palavra que parece cidade
+              const palavras = entrada.entrada_usuario.split(/\s+/);
+              const possiveisCidades = palavras.filter(
+                (palavra) =>
+                  palavra.length > 2 && /^[A-Za-zÀ-ÿ]+$/.test(palavra)
               );
+              if (possiveisCidades.length > 0) {
+                cidade = possiveisCidades[possiveisCidades.length - 1];
+              } else {
+                throw new Error(
+                  "CITY_NOT_FOUND: Nenhuma cidade encontrada na consulta. Digite uma cidade válida (exemplo: 'como está o clima em São Paulo?')."
+                );
+              }
             }
           }
 
@@ -348,6 +358,62 @@ export const useSistemaInteligente = () => {
               `SERVICE_UNAVAILABLE: Erro ao buscar informações da cidade '${cidade}'. Tente novamente.`
             );
           }
+        }
+
+        // 5. Se a consulta está fora do escopo
+        if (decisao.acao === "CONSULTA_FORA_ESCOPO") {
+          return {
+            mensagem_inicial: decisao.mensagem_amigavel,
+            acao_executada: "CONSULTA_FORA_ESCOPO",
+            dados_cep: undefined,
+            dados_clima: undefined,
+            mensagem_final: decisao.mensagem_amigavel,
+          };
+        }
+
+        // 6. Se precisa solicitar CEP
+        if (decisao.acao === "SOLICITAR_CEP") {
+          return {
+            mensagem_inicial: decisao.mensagem_amigavel,
+            acao_executada: "SOLICITAR_CEP",
+            dados_cep: undefined,
+            dados_clima: undefined,
+            mensagem_final: decisao.mensagem_amigavel,
+          };
+        }
+
+        // 7. Se precisa solicitar local
+        if (decisao.acao === "SOLICITAR_LOCAL") {
+          return {
+            mensagem_inicial: decisao.mensagem_amigavel,
+            acao_executada: "SOLICITAR_LOCAL",
+            dados_cep: undefined,
+            dados_clima: undefined,
+            mensagem_final: decisao.mensagem_amigavel,
+          };
+        }
+
+        // 8. Se há múltiplas cidades encontradas
+        if (decisao.acao === "MULTIPLAS_CIDADES") {
+          return {
+            mensagem_inicial: decisao.mensagem_amigavel,
+            acao_executada: "MULTIPLAS_CIDADES",
+            dados_cep: undefined,
+            dados_clima: undefined,
+            cidades_encontradas: decisao.cidades_encontradas,
+            mensagem_final: decisao.mensagem_amigavel,
+          };
+        }
+
+        // 9. Se a cidade não foi encontrada
+        if (decisao.acao === "CIDADE_NAO_ENCONTRADA") {
+          return {
+            mensagem_inicial: decisao.mensagem_amigavel,
+            acao_executada: "CIDADE_NAO_ENCONTRADA",
+            dados_cep: undefined,
+            dados_clima: undefined,
+            mensagem_final: decisao.mensagem_amigavel,
+          };
         }
 
         throw new Error("Ação não reconhecida pelo sistema");

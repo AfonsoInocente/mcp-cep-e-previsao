@@ -535,7 +535,219 @@ export const createAnalisarDadosComAITool = (env: Env) =>
     },
   });
 
-export const createDecisorInteligenteTool = (env: Env) =>
+// Função de fallback manual inteligente
+const analiseManualFallback = async (entrada_usuario: string, env: Env) => {
+  console.log("🔧 FALLBACK: Iniciando análise manual para:", entrada_usuario);
+
+  // 1. Verificar se é um CEP direto
+  const cepMatch = entrada_usuario.match(/\d{5}-?\d{3}/);
+  if (cepMatch) {
+    console.log("🔧 FALLBACK: CEP identificado:", cepMatch[0]);
+    return {
+      acao: "CONSULTAR_CEP" as const,
+      cep_extraido: cepMatch[0].replace(/\D/g, ""),
+      cidade_extraida: undefined,
+      justificativa: "CEP identificado na entrada",
+      mensagem_amigavel: "Vou buscar as informações do endereço para você! 😊",
+      cidades_encontradas: undefined,
+    };
+  }
+
+  // 2. Verificar palavras-chave de clima/tempo
+  const palavrasClima =
+    /tempo|clima|temperatura|chuva|sol|calor|frio|weather|previsão|previsao/i;
+  const temPalavrasClima = palavrasClima.test(entrada_usuario);
+
+  // 3. Verificar palavras-chave de CEP/endereço
+  const palavrasCEP =
+    /cep|endereço|endereco|rua|bairro|cidade|city|loc|local|localidade/i;
+  const temPalavrasCEP = palavrasCEP.test(entrada_usuario);
+
+  // 4. Verificar se parece ser apenas o nome de uma cidade OU extrair cidade de frases
+  const apenasCidade = entrada_usuario.match(/^([A-Za-zÀ-ÿ\s]+?)$/);
+  const pareceCidade =
+    apenasCidade &&
+    apenasCidade[1].trim().split(/\s+/).length <= 3 &&
+    /^[A-Za-zÀ-ÿ\s]+$/.test(apenasCidade[1].trim()) &&
+    apenasCidade[1].trim().length > 2;
+
+  // 5. Tentar extrair cidade de frases como "previsão para [cidade]"
+  let cidadeExtraida = undefined;
+  if (temPalavrasClima || temPalavrasCEP) {
+    console.log(
+      "🔧 FALLBACK: Tentando extrair cidade de frase:",
+      entrada_usuario
+    );
+
+    // Padrões para extrair cidade de frases
+    const padroesCidade = [
+      // Padrões com palavras intermediárias (para, em, de)
+      /(?:previsão|previsao|clima|tempo|temperatura|cep|endereço|endereco|rua|bairro|cidade|city|loc|local|localidade)\s+(?:para|em|de)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+
+      // Padrões diretos (sem palavras intermediárias)
+      /(?:previsão|previsao|clima|tempo|temperatura|cep|endereço|endereco|rua|bairro|cidade|city|loc|local|localidade)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+
+      // Padrões específicos para consultas de clima
+      /(?:como\s+está\s+o?\s*clima\s+em)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      /(?:temperatura\s+em)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      /(?:clima\s+em)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+
+      // Padrões para consultas de endereço
+      /(?:endereço|endereco)\s+(?:de|do|da)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      /(?:rua|bairro)\s+(?:de|do|da)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+    ];
+
+    for (let i = 0; i < padroesCidade.length; i++) {
+      const padrao = padroesCidade[i];
+      const match = entrada_usuario.match(padrao);
+      console.log(
+        `🔧 FALLBACK: Testando padrão ${i + 1}:`,
+        padrao.source,
+        "Resultado:",
+        match
+      );
+      if (match && match[1]) {
+        cidadeExtraida = match[1].trim();
+        console.log("🔧 FALLBACK: Cidade extraída de frase:", cidadeExtraida);
+        break;
+      }
+    }
+  }
+
+  // 6. Se parece ser uma cidade OU se extraímos cidade de uma frase, validar usando a API
+  if ((pareceCidade && !temPalavrasCEP) || cidadeExtraida) {
+    const nomeCidade =
+      cidadeExtraida || (apenasCidade ? apenasCidade[1].trim() : "");
+    console.log(
+      "🔧 FALLBACK: Cidade detectada/extraída, validando:",
+      nomeCidade
+    );
+
+    try {
+      // Usar a API diretamente para validar a cidade
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+
+      const response = await fetch(
+        `https://brasilapi.com.br/api/cptec/v1/cidade/${encodeURIComponent(nomeCidade)}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "Deco-MCP-Server/1.0",
+          },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.log("🔧 FALLBACK: Cidade não encontrada na API:", nomeCidade);
+        return {
+          acao: "CIDADE_NAO_ENCONTRADA" as const,
+          cep_extraido: undefined,
+          cidade_extraida: nomeCidade,
+          justificativa: "Cidade não encontrada na base de dados",
+          mensagem_amigavel: `Desculpe, não encontrei a cidade "${nomeCidade}" na base de dados. Pode verificar o nome ou tentar uma cidade próxima? 😊`,
+          cidades_encontradas: [],
+        };
+      }
+
+      const data = await response.json();
+      const localidades = data.map((localidade: any) => ({
+        id: localidade.id,
+        nome: localidade.nome,
+        estado: localidade.estado,
+      }));
+
+      if (localidades.length === 0) {
+        console.log("🔧 FALLBACK: Cidade não encontrada:", nomeCidade);
+        return {
+          acao: "CIDADE_NAO_ENCONTRADA" as const,
+          cep_extraido: undefined,
+          cidade_extraida: nomeCidade,
+          justificativa: "Cidade não encontrada na base de dados",
+          mensagem_amigavel: `Desculpe, não encontrei a cidade "${nomeCidade}" na base de dados. Pode verificar o nome ou tentar uma cidade próxima? 😊`,
+          cidades_encontradas: [],
+        };
+      } else if (localidades.length === 1) {
+        console.log("🔧 FALLBACK: Cidade única encontrada:", localidades[0]);
+        return {
+          acao: "CONSULTAR_PREVISAO_DIRETA" as const,
+          cep_extraido: undefined,
+          cidade_extraida: nomeCidade,
+          justificativa: "Cidade única identificada e validada",
+          mensagem_amigavel: `Vou buscar a previsão do tempo para ${nomeCidade}! 😊`,
+          cidades_encontradas: undefined,
+        };
+      } else {
+        console.log("🔧 FALLBACK: Múltiplas cidades encontradas:", localidades);
+        return {
+          acao: "MULTIPLAS_CIDADES" as const,
+          cep_extraido: undefined,
+          cidade_extraida: nomeCidade,
+          justificativa: "Múltiplas cidades encontradas com o mesmo nome",
+          mensagem_amigavel: `Encontrei várias cidades com o nome "${nomeCidade}". Qual você quer? ${localidades.map((c: any) => `${c.nome}/${c.estado}`).join(", ")} 😊`,
+          cidades_encontradas: localidades,
+        };
+      }
+    } catch (error) {
+      console.log("🔧 FALLBACK: Erro ao validar cidade:", error);
+      // Se der erro na validação, assume que é uma cidade válida
+      return {
+        acao: "CONSULTAR_PREVISAO_DIRETA" as const,
+        cep_extraido: undefined,
+        cidade_extraida: nomeCidade,
+        justificativa: "Cidade identificada na entrada (validação falhou)",
+        mensagem_amigavel: `Vou buscar a previsão do tempo para ${nomeCidade}! 😊`,
+        cidades_encontradas: undefined,
+      };
+    }
+  }
+
+  // 7. Se tem palavras de clima mas não tem cidade específica
+  if (temPalavrasClima && !pareceCidade && !cidadeExtraida) {
+    console.log(
+      "🔧 FALLBACK: Palavras de clima detectadas, solicitando cidade"
+    );
+    return {
+      acao: "SOLICITAR_LOCAL" as const,
+      cep_extraido: undefined,
+      cidade_extraida: undefined,
+      justificativa: "Consulta de clima detectada, mas cidade não especificada",
+      mensagem_amigavel: "Previsão do tempo de qual CEP ou cidade? 😊",
+      cidades_encontradas: undefined,
+    };
+  }
+
+  // 8. Se tem palavras de CEP mas não tem CEP específico
+  if (temPalavrasCEP && !cepMatch) {
+    console.log("🔧 FALLBACK: Palavras de CEP detectadas, solicitando CEP");
+    return {
+      acao: "SOLICITAR_CEP" as const,
+      cep_extraido: undefined,
+      cidade_extraida: undefined,
+      justificativa: "Consulta de endereço detectada, mas CEP não especificado",
+      mensagem_amigavel: "De qual CEP você gostaria de saber o endereço? 😊",
+      cidades_encontradas: undefined,
+    };
+  }
+
+  // 9. Se não conseguiu identificar nada específico
+  console.log("🔧 FALLBACK: Não foi possível identificar a intenção");
+  return {
+    acao: "SOLICITAR_LOCAL" as const,
+    cep_extraido: undefined,
+    cidade_extraida: undefined,
+    justificativa: "Não foi possível identificar a intenção da consulta",
+    mensagem_amigavel:
+      "Pode me dizer o que você gostaria de saber? CEP, endereço ou previsão do tempo? 😊",
+    cidades_encontradas: undefined,
+  };
+};
+
+const createDecisorInteligenteTool = (env: Env) =>
   createTool({
     id: "DECISOR_INTELIGENTE",
     description:
@@ -548,11 +760,17 @@ export const createDecisorInteligenteTool = (env: Env) =>
         "CONSULTAR_CEP",
         "CONSULTAR_CEP_E_PREVISAO",
         "CONSULTAR_PREVISAO_DIRETA",
+        "CONSULTA_FORA_ESCOPO",
+        "SOLICITAR_CEP",
+        "SOLICITAR_LOCAL",
+        "MULTIPLAS_CIDADES",
+        "CIDADE_NAO_ENCONTRADA",
       ]),
       cep_extraido: z.string().optional(),
       cidade_extraida: z.string().optional(),
       justificativa: z.string(),
       mensagem_amigavel: z.string(),
+      cidades_encontradas: z.array(z.any()).optional(),
     }),
     execute: async ({ context }) => {
       const { entrada_usuario } = context;
@@ -644,7 +862,16 @@ export const createDecisorInteligenteTool = (env: Env) =>
           '- "Como está o clima em São Paulo?" → CONSULTAR_PREVISAO_DIRETA\n';
         prompt += '- "Temperatura em São Paulo" → CONSULTAR_PREVISAO_DIRETA\n';
         prompt +=
-          '- "Previsão do tempo para São Paulo" → CONSULTAR_PREVISAO_DIRETA\n\n';
+          '- "Previsão do tempo para São Paulo" → CONSULTAR_PREVISAO_DIRETA\n';
+        prompt +=
+          '- "Qual é a melhor marca de carro?" → CONSULTA_FORA_ESCOPO\n';
+        prompt += '- "Como fazer bolo?" → CONSULTA_FORA_ESCOPO\n';
+        prompt += '- "História do Brasil" → CONSULTA_FORA_ESCOPO\n';
+        prompt += '- "Quero saber o endereço" → SOLICITAR_CEP\n';
+        prompt += '- "Previsão do tempo" → SOLICITAR_LOCAL\n';
+        prompt += '- "São Paulo" → CONSULTAR_PREVISAO_DIRETA\n';
+        prompt += '- "Rio de Janeiro" → CONSULTAR_PREVISAO_DIRETA\n';
+        prompt += '- "Belo Horizonte" → CONSULTAR_PREVISAO_DIRETA\n\n';
         prompt += "TAREFAS:\n";
         prompt +=
           "1. Identifique se há um CEP na entrada (formato: 00000-000 ou 00000000)\n";
@@ -698,61 +925,153 @@ export const createDecisorInteligenteTool = (env: Env) =>
       } catch (error) {
         console.log("DECISOR_INTELIGENTE: Erro na análise:", error);
 
-        // Fallback: tenta extrair CEP e decide baseado em palavras-chave
-        const cepMatch = entrada_usuario.match(/\d{5}-?\d{3}/);
-        const temPalavrasClima =
-          /clima|tempo|previsão|temperatura|chuva|sol|calor|frio|weather/i.test(
-            entrada_usuario
-          );
+        // Fallback inteligente usando IA para análise da entrada
+        console.log("🤖 Usando IA para análise inteligente da entrada...");
 
-        // Determina a ação baseada na presença de CEP e palavras de clima
-        let acao:
-          | "CONSULTAR_CEP"
-          | "CONSULTAR_CEP_E_PREVISAO"
-          | "CONSULTAR_PREVISAO_DIRETA";
-
-        if (cepMatch && temPalavrasClima) {
-          acao = "CONSULTAR_CEP_E_PREVISAO";
-        } else if (cepMatch && !temPalavrasClima) {
-          acao = "CONSULTAR_CEP";
-        } else if (!cepMatch && temPalavrasClima) {
-          acao = "CONSULTAR_PREVISAO_DIRETA";
-        } else {
-          acao = "CONSULTAR_CEP"; // Fallback padrão
-        }
-
-        let cep_extraido = undefined;
-        if (cepMatch) {
-          cep_extraido = cepMatch[0].replace(/\D/g, "");
-        }
-
-        // Extrai cidade se mencionada
-        const cidadeMatch = entrada_usuario.match(
-          /(?:em|para|de)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,)/i
-        );
-        const cidade_extraida = cidadeMatch ? cidadeMatch[1].trim() : undefined;
-
-        const justificativa =
-          acao === "CONSULTAR_PREVISAO_DIRETA"
-            ? "Análise automática baseada em palavras-chave. Detectadas palavras relacionadas ao clima sem CEP específico."
-            : temPalavrasClima
-              ? "Análise automática baseada em palavras-chave. Detectadas palavras relacionadas ao clima."
-              : "Análise automática baseada em palavras-chave. Nenhuma menção ao clima encontrada.";
-
-        const mensagem_amigavel =
-          acao === "CONSULTAR_PREVISAO_DIRETA"
-            ? "Vou buscar a previsão do tempo para você!"
-            : acao === "CONSULTAR_CEP_E_PREVISAO"
-              ? "Vou consultar o CEP e buscar a previsão do tempo para você!"
-              : "Vou consultar as informações do CEP para você!";
-
-        return {
-          acao: acao,
-          cep_extraido,
-          cidade_extraida,
-          justificativa,
-          mensagem_amigavel,
+        const ANALISE_ENTRADA_SCHEMA = {
+          type: "object",
+          properties: {
+            tipo_consulta: {
+              type: "string",
+              enum: ["CEP", "PREVISAO", "CEP_E_PREVISAO", "FORA_ESCOPO"],
+              description: "Tipo de consulta identificada",
+            },
+            cep_identificado: {
+              type: "string",
+              description: "CEP extraído da entrada (se houver)",
+            },
+            cidade_identificada: {
+              type: "string",
+              description: "Cidade extraída da entrada (se houver)",
+            },
+            acao_recomendada: {
+              type: "string",
+              enum: [
+                "CONSULTAR_CEP",
+                "CONSULTAR_PREVISAO_DIRETA",
+                "CONSULTAR_CEP_E_PREVISAO",
+                "SOLICITAR_CEP",
+                "SOLICITAR_LOCAL",
+                "CONSULTA_FORA_ESCOPO",
+              ],
+              description: "Ação recomendada baseada na análise",
+            },
+            justificativa: {
+              type: "string",
+              description: "Justificativa da análise",
+            },
+            mensagem_amigavel: {
+              type: "string",
+              description: "Mensagem amigável para o usuário",
+            },
+          },
+          required: [
+            "tipo_consulta",
+            "acao_recomendada",
+            "justificativa",
+            "mensagem_amigavel",
+          ],
         };
+
+        const promptAnalise = `Analise a seguinte entrada do usuário e identifique:
+
+ENTRADA: "${entrada_usuario}"
+
+TAREFAS:
+1. Identifique se há um CEP (formato: 00000-000 ou 00000000)
+2. Identifique se há menção a uma cidade/localidade
+3. Determine se é consulta de:
+   - Apenas CEP (endereço)
+   - Apenas previsão do tempo
+   - CEP + previsão do tempo
+   - Fora do escopo (não relacionado a CEP ou clima)
+
+EXEMPLOS:
+- "01310-100" → CONSULTAR_CEP
+- "São Paulo" → CONSULTAR_PREVISAO_DIRETA
+- "Rio de Janeiro" → CONSULTAR_PREVISAO_DIRETA
+- "Como está o clima em São Paulo?" → CONSULTAR_PREVISAO_DIRETA
+- "CEP 01310-100" → CONSULTAR_CEP
+- "Previsão do tempo para 01310-100" → CONSULTAR_CEP_E_PREVISAO
+- "Quero saber o endereço" → SOLICITAR_CEP
+- "Previsão do tempo" → SOLICITAR_LOCAL
+- "Qual a melhor marca de carro?" → CONSULTA_FORA_ESCOPO
+
+Seja preciso e amigável na análise.`;
+
+        try {
+          console.log("🤖 DECISOR_INTELIGENTE: Chamando IA para análise...");
+          const analiseIA =
+            await env.DECO_CHAT_WORKSPACE_API.AI_GENERATE_OBJECT({
+              model: "openai:gpt-4o-mini",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "Você é um assistente especializado em análise de consultas de CEP e previsão do tempo. Seja preciso e amigável.",
+                },
+                {
+                  role: "user",
+                  content: promptAnalise,
+                },
+              ],
+              temperature: 0.1,
+              schema: ANALISE_ENTRADA_SCHEMA,
+            });
+
+          if (analiseIA.object) {
+            console.log("✅ Análise IA recebida:", analiseIA.object);
+
+            // Verificar se a IA extraiu dados que fazem sentido
+            const cidadeIA = analiseIA.object.cidade_identificada;
+            const cepIA = analiseIA.object.cep_identificado;
+
+            // Se a IA extraiu uma cidade que contém palavras-chave (como "previsão"), usar fallback
+            console.log(
+              "🔍 DECISOR_INTELIGENTE: Validando cidade extraída pela IA:",
+              cidadeIA
+            );
+            if (
+              cidadeIA &&
+              typeof cidadeIA === "string" &&
+              (cidadeIA.toLowerCase().includes("previsão") ||
+                cidadeIA.toLowerCase().includes("previsao") ||
+                cidadeIA.toLowerCase().includes("clima") ||
+                cidadeIA.toLowerCase().includes("tempo") ||
+                cidadeIA.toLowerCase().includes("em") ||
+                cidadeIA.toLowerCase().includes("para") ||
+                cidadeIA.toLowerCase().includes("de"))
+            ) {
+              console.log(
+                "⚠️ IA extraiu cidade inválida:",
+                cidadeIA,
+                "- usando fallback manual"
+              );
+              return await analiseManualFallback(entrada_usuario, env);
+            } else {
+              console.log("✅ IA extraiu cidade válida:", cidadeIA);
+            }
+
+            return {
+              acao: analiseIA.object.acao_recomendada as any,
+              cep_extraido: cepIA as string | undefined,
+              cidade_extraida: cidadeIA as string | undefined,
+              justificativa: analiseIA.object.justificativa as string,
+              mensagem_amigavel: analiseIA.object.mensagem_amigavel as string,
+              cidades_encontradas: undefined,
+            };
+          } else {
+            console.log(
+              "⚠️ Análise IA não retornou objeto válido, usando fallback manual"
+            );
+            return await analiseManualFallback(entrada_usuario, env);
+          }
+        } catch (error) {
+          console.log("⚠️ Erro na análise IA, usando fallback manual:", error);
+
+          // Fallback inteligente manual
+          return await analiseManualFallback(entrada_usuario, env);
+        }
       }
     },
   });
@@ -879,3 +1198,5 @@ export const tools = [
   createDecisorInteligenteTool,
   createTesteAITool,
 ];
+
+export { createDecisorInteligenteTool };
