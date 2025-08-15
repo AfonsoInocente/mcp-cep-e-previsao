@@ -150,7 +150,7 @@ export const useSistemaInteligente = () => {
               acao_executada: "CONSULTAR_CEP",
               dados_cep: cepData,
               dados_clima: undefined,
-              mensagem_final: `✅ Aqui estão as informações do CEP ${cepData.cep}:\n\n📍 **Endereço Completo:**\n• Rua: ${cepData.street}\n• Bairro: ${cepData.neighborhood}\n• Cidade: ${cepData.city}\n• Estado: ${cepData.state}\n\nPrecisa de mais alguma informação? 😊`,
+              mensagem_final: `✅ Aqui estão as informações do CEP ${cepData.cep}. Precisa de mais alguma informação? 😊`,
             };
           } catch (cepError: any) {
             console.error("❌ Erro ao consultar CEP:", cepError);
@@ -259,8 +259,8 @@ export const useSistemaInteligente = () => {
             dados_cep: cepData,
             dados_clima: clima,
             mensagem_final: clima
-              ? `✅ Pronto! Aqui estão as informações completas para o CEP ${cepData.cep}:\n\n📍 **Endereço:** ${cepData.street}, ${cepData.neighborhood}, ${cepData.city} - ${cepData.state}\n\n🌤️ **Previsão do Tempo:**\n${clima.clima.map((dia: any) => `📅 ${dia.data}: ${dia.condicao_desc} (${dia.min}°C a ${dia.max}°C) - UV: ${dia.indice_uv}`).join("\n")}\n\nEspero que essas informações sejam úteis! 😊`
-              : `✅ Aqui estão as informações do CEP ${cepData.cep}:\n\n📍 **Endereço:** ${cepData.street}, ${cepData.neighborhood}, ${cepData.city} - ${cepData.state}\n\n⚠️ Previsão do tempo não disponível para esta cidade.`,
+              ? `✅ Pronto! Aqui estão as informações completas para o CEP ${cepData.cep}. Espero que essas informações sejam úteis! 😊`
+              : `✅ Aqui estão as informações do CEP ${cepData.cep}. ⚠️ Previsão do tempo não disponível para esta cidade.`,
           };
         }
 
@@ -347,7 +347,7 @@ export const useSistemaInteligente = () => {
               acao_executada: "CONSULTAR_PREVISAO_DIRETA",
               dados_cep: undefined,
               dados_clima: clima,
-              mensagem_final: `✅ Pronto! Aqui está a previsão do tempo para ${localidadeEncontrada.nome}:\n\n🌤️ **Previsão do Tempo:**\n${clima.clima.map((dia: any) => `📅 ${dia.data}: ${dia.condicao_desc} (${dia.min}°C a ${dia.max}°C) - UV: ${dia.indice_uv}`).join("\n")}\n\nEspero que essas informações sejam úteis! 😊`,
+              mensagem_final: `✅ Pronto! Aqui está a previsão do tempo para ${localidadeEncontrada.nome}. Espero que essas informações sejam úteis! 😊`,
             };
           } catch (localidadeError: any) {
             console.error("❌ Erro ao buscar localidade:", localidadeError);
@@ -412,7 +412,7 @@ export const useSistemaInteligente = () => {
             acao_executada: "CIDADE_NAO_ENCONTRADA",
             dados_cep: undefined,
             dados_clima: undefined,
-            mensagem_final: decisao.mensagem_amigavel,
+            mensagem_final: "", // Não duplicar a mensagem
           };
         }
 

@@ -623,6 +623,45 @@ const analiseManualFallback = async (entrada_usuario: string, env: Env) => {
       nomeCidade
     );
 
+    // Verificar se a cidade extraída faz sentido (não contém palavras que não são cidades)
+    const palavrasNaoCidade = [
+      "massa",
+      "pizza",
+      "comida",
+      "receita",
+      "carro",
+      "moto",
+      "casa",
+      "trabalho",
+      "escola",
+      "hospital",
+      "banco",
+      "loja",
+      "mercado",
+      "restaurante",
+    ];
+    const palavrasCidade = nomeCidade.toLowerCase().split(/\s+/);
+
+    const temPalavrasNaoCidade = palavrasCidade.some((palavra) =>
+      palavrasNaoCidade.includes(palavra)
+    );
+
+    if (temPalavrasNaoCidade) {
+      console.log(
+        "🔧 FALLBACK: Cidade contém palavras que não são cidades:",
+        nomeCidade
+      );
+      return {
+        acao: "CONSULTA_FORA_ESCOPO" as const,
+        cep_extraido: undefined,
+        cidade_extraida: undefined,
+        justificativa: "Consulta não relacionada a CEP ou clima",
+        mensagem_amigavel:
+          "Desculpe, só posso ajudar com consultas de CEP e previsão do tempo. Pode me perguntar sobre endereços ou clima? 😊",
+        cidades_encontradas: undefined,
+      };
+    }
+
     try {
       // Usar a API diretamente para validar a cidade
       const controller = new AbortController();
@@ -688,7 +727,7 @@ const analiseManualFallback = async (entrada_usuario: string, env: Env) => {
           cep_extraido: undefined,
           cidade_extraida: nomeCidade,
           justificativa: "Múltiplas cidades encontradas com o mesmo nome",
-          mensagem_amigavel: `Encontrei várias cidades com o nome "${nomeCidade}". Qual você quer? ${localidades.map((c: any) => `${c.nome}/${c.estado}`).join(", ")} 😊`,
+          mensagem_amigavel: `Encontrei várias cidades com o nome "${nomeCidade}". Qual você quer? 😊`,
           cidades_encontradas: localidades,
         };
       }

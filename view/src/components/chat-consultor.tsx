@@ -118,11 +118,6 @@ export function ChatConsultor() {
           tipo: "clima",
           dados: previsaoData,
         });
-
-        addMessage(
-          "✅ Pronto! Aqui está a previsão do tempo para a cidade selecionada. 😊",
-          false
-        );
       } else {
         // Se não tem cidadeId, processa como entrada normal
         const resultado = await sistemaMutation.mutateAsync({
@@ -390,13 +385,13 @@ export function ChatConsultor() {
                 <div className="text-xs text-gray-600 mb-2">
                   Escolha uma opção:
                 </div>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="max-h-64 overflow-y-auto pr-2 space-y-2 city-options-scroll">
                   {message.options.map((option) => (
                     <Button
                       key={option.id}
                       variant="outline"
                       size="sm"
-                      className="justify-start text-left h-auto py-2 px-3"
+                      className="justify-start text-left h-auto py-2 px-3 w-full"
                       onClick={() => handleOptionClick(option)}
                       disabled={isLoading}
                     >
