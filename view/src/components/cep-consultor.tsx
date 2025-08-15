@@ -1,212 +1,205 @@
 import { useState } from "react";
-import { Search, MapPin, Thermometer, Calendar } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useConsultarCepEPrevisao } from "@/lib/hooks";
-import { toast } from "sonner";
-
-interface CepResult {
-  cep: string;
-  state: string;
-  city: string;
-  neighborhood: string;
-  street: string;
-  location_id?: number;
-  clima?: Array<{
-    condicao: string;
-    minima: number;
-    maxima: number;
-  }>;
-}
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { useSistemaInteligente } from "../lib/hooks";
+import { Loader2, MapPin, Cloud, Search } from "lucide-react";
 
 export function CepConsultor() {
-  const [cep, setCep] = useState("");
-  const [result, setResult] = useState<CepResult | null>(null);
-  const consultarCep = useConsultarCepEPrevisao();
+  const [entrada, setEntrada] = useState("");
+  const [resultado, setResultado] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const sistemaMutation = useSistemaInteligente();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!entrada.trim()) return;
 
-    if (!cep.trim()) {
-      toast.error("Digite um CEP válido");
-      return;
-    }
+    setIsLoading(true);
+    setResultado(null);
 
     try {
-      const data = await consultarCep.mutateAsync(cep);
-      setResult(data);
-      toast.success("Consulta realizada com sucesso!");
+      const resultado = await sistemaMutation.mutateAsync({
+        entrada_usuario: entrada.trim(),
+      });
+
+      setResultado(resultado);
     } catch (error) {
-      // Erro já tratado no hook
-      setResult(null);
+      console.error("Erro no sistema:", error);
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  const formatCep = (value: string) => {
-    // Remove tudo que não é número
-    const numbers = value.replace(/\D/g, "");
-    // Aplica máscara: 00000-000
-    return numbers.replace(/(\d{5})(\d{3})/, "$1-$2");
-  };
-
-  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const formatted = formatCep(value);
-    setCep(formatted);
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-white">Consulta de CEP</h1>
-        <p className="text-slate-400">
-          Digite um CEP para obter informações do endereço e previsão do tempo
-        </p>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={cep}
-            onChange={handleCepChange}
-            placeholder="00000-000"
-            maxLength={9}
-            className="flex-1 px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={consultarCep.isPending}
-          />
-          <Button
-            type="submit"
-            disabled={consultarCep.isPending || !cep.trim()}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {consultarCep.isPending ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Consultando...
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Search className="w-4 h-4" />
-                Consultar
-              </div>
-            )}
-          </Button>
-        </div>
-      </form>
-
-      {/* Result */}
-      {result && (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 space-y-6">
-          {/* Endereço */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-blue-400">
-              <MapPin className="w-5 h-5" />
-              <h2 className="text-lg font-semibold">Informações do Endereço</h2>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Consulta Inteligente de CEP e Previsão
+          </CardTitle>
+          <CardDescription>
+            Digite sua consulta e eu decido automaticamente se você quer apenas o endereço ou também a previsão do tempo!
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="entrada" className="text-sm font-medium">
+                O que você quer saber?
+              </label>
+              <Input
+                id="entrada"
+                type="text"
+                placeholder="Ex: CEP 01310-100, Como está o clima em São Paulo?, Previsão do tempo para 01310-100"
+                value={entrada}
+                onChange={(e) => setEntrada(e.target.value)}
+                disabled={isLoading}
+                className="text-base"
+              />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div>
-                  <span className="text-slate-400 text-sm">CEP:</span>
-                  <p className="text-white font-medium">{result.cep}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 text-sm">Estado:</span>
-                  <p className="text-white font-medium">{result.state}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 text-sm">Cidade:</span>
-                  <p className="text-white font-medium">{result.city}</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div>
-                  <span className="text-slate-400 text-sm">Bairro:</span>
-                  <p className="text-white font-medium">
-                    {result.neighborhood}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-slate-400 text-sm">Rua:</span>
-                  <p className="text-white font-medium">{result.street}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Previsão do Tempo */}
-          {result.clima && result.clima.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-green-400">
-                <Thermometer className="w-5 h-5" />
-                <h2 className="text-lg font-semibold">Previsão do Tempo</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {result.clima.slice(0, 6).map((previsao, index) => (
-                  <div
-                    key={index}
-                    className="bg-slate-700 border border-slate-600 rounded-lg p-4 space-y-2"
-                  >
-                    <div className="flex items-center gap-2 text-slate-300">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm font-medium">
-                        Dia {index + 1}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="text-white font-medium text-sm">
-                        {previsao.condicao}
-                      </p>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-blue-400">
-                          Mín: {previsao.minima}°C
-                        </span>
-                        <span className="text-red-400">
-                          Máx: {previsao.maxima}°C
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {result.clima.length > 6 && (
-                <p className="text-slate-400 text-sm text-center">
-                  +{result.clima.length - 6} dias adicionais disponíveis
-                </p>
+            <Button type="submit" disabled={isLoading || !entrada.trim()}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analisando...
+                </>
+              ) : (
+                <>
+                  <Search className="mr-2 h-4 w-4" />
+                  Consultar
+                </>
               )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {sistemaMutation.isPending && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center space-x-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Processando sua consulta...</span>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {resultado && (
+        <div className="space-y-4">
+          {/* Mensagem Inicial */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">🤖 Análise Inteligente</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">{resultado.mensagem_inicial}</p>
+            </CardContent>
+          </Card>
+
+          {/* Dados do CEP */}
+          {resultado.dados_cep && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Informações do Endereço
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">CEP</p>
+                    <p className="text-lg font-semibold">{resultado.dados_cep.cep}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Estado</p>
+                    <p className="text-lg">{resultado.dados_cep.state}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Cidade</p>
+                    <p className="text-lg">{resultado.dados_cep.city}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Bairro</p>
+                    <p className="text-lg">{resultado.dados_cep.neighborhood}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-medium text-muted-foreground">Rua</p>
+                    <p className="text-lg">{resultado.dados_cep.street}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Mensagem quando não há previsão */}
-          {result.location_id && !result.clima && (
-            <div className="bg-slate-700 border border-slate-600 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center gap-2 text-slate-400">
-                <Thermometer className="w-4 h-4" />
-                <span className="text-sm">
-                  Previsão do tempo não disponível para esta cidade
-                </span>
-              </div>
-            </div>
+          {/* Dados do Clima */}
+          {resultado.dados_clima && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Cloud className="h-5 w-5" />
+                  Previsão do Tempo
+                </CardTitle>
+                <CardDescription>
+                  {resultado.dados_clima.cidade}, {resultado.dados_clima.estado} - 
+                  Atualizado em {new Date(resultado.dados_clima.atualizado_em).toLocaleString('pt-BR')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {resultado.dados_clima.clima.map((dia: any, index: number) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <p className="font-semibold text-sm">
+                        {new Date(dia.data).toLocaleDateString('pt-BR', { 
+                          weekday: 'short', 
+                          day: 'numeric', 
+                          month: 'short' 
+                        })}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">{dia.condicao_desc}</p>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-lg font-bold">{dia.min}°</span>
+                        <span className="text-lg">{dia.max}°</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        UV: {dia.indice_uv}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
+
+          {/* Mensagem Final */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="prose prose-sm max-w-none">
+                <div 
+                  className="whitespace-pre-line text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ 
+                    __html: resultado.mensagem_final.replace(/\n/g, '<br>') 
+                  }} 
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Instruções */}
-      <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-white mb-2">Como usar:</h3>
-        <ul className="text-xs text-slate-400 space-y-1">
-          <li>• Digite o CEP no formato 00000-000 ou apenas números</li>
-          <li>• O sistema automaticamente limpa caracteres especiais</li>
-          <li>• Após a consulta, você receberá informações do endereço</li>
-          <li>• Se disponível, também será exibida a previsão do tempo</li>
-        </ul>
-      </div>
+      {sistemaMutation.isError && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center text-red-600">
+              <p>Erro ao processar sua consulta. Tente novamente.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

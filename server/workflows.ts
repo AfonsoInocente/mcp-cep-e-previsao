@@ -21,6 +21,7 @@ import {
   createConsultarCEPTool,
   createBuscarLocalidadeTool,
   createPrevisaoTempoTool,
+  createDecisorInteligenteTool,
 } from "./tools";
 
 const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
@@ -134,4 +135,32 @@ const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
     .commit();
 };
 
-export const workflows = [createConsultarCepEPrevisaoWorkflow];
+const createWorkflowPrincipalInteligente = (env: Env) => {
+  const decisorStep = createStepFromTool(createDecisorInteligenteTool(env));
+
+  return createWorkflow({
+    id: "WORKFLOW_PRINCIPAL_INTELIGENTE",
+    inputSchema: z.object({
+      entrada_usuario: z.string().min(1, "Entrada do usuário é obrigatória"),
+    }),
+    outputSchema: z.object({
+      mensagem_inicial: z.string(),
+      acao_executada: z.string(),
+      mensagem_final: z.string(),
+    }),
+  })
+    .then(decisorStep)
+    .map(async ({ inputData }) => {
+      return {
+        mensagem_inicial: inputData.mensagem_amigavel,
+        acao_executada: inputData.acao,
+        mensagem_final: `✅ Análise concluída! ${inputData.mensagem_amigavel}`,
+      };
+    })
+    .commit();
+};
+
+export const workflows = [
+  createConsultarCepEPrevisaoWorkflow,
+  createWorkflowPrincipalInteligente,
+];
