@@ -1,0 +1,29 @@
+import { defineConfig } from "vite";
+import viteReact from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+
+import { resolve } from "node:path";
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [viteReact(), tailwindcss()],
+  build: {
+    outDir: "../server/view-build/",
+    emptyOutDir: true,
+  },
+  server: {
+    strictPort: true,
+    proxy: {
+      "/mcp": {
+        target: "http://localhost:52000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/mcp/, "/mcp"),
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "./src"),
+    },
+  },
+});

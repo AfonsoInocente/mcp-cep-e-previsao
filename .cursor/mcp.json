@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mcp-cep-e-previsao": {
+      "type": "http",
+      "url": "https://localhost-e6d02025.deco.host/mcp"
+    }
+  }
+}
