@@ -81,8 +81,8 @@ export const createConsultarCEPTool = (env: Env) =>
           cep: data.cep,
           state: data.state,
           city: data.city,
-          neighborhood: data.neighborhood,
-          street: data.street,
+          neighborhood: data.neighborhood || "Não Informado",
+          street: data.street || "Não Informado",
         };
 
         console.log(`✅ CONSULTAR_CEP: Resultado final:`, result);

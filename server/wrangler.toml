@@ -13,7 +13,7 @@ binding = "ASSETS"
 workspace = "superafonso"
 bindings = []
 enable_workflows = true
-local = false
+local = true
 
 [[migrations]]
 tag = "v1"

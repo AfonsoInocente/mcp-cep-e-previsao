@@ -61,6 +61,12 @@ export const useConsultarCepEPrevisao = () => {
             // Se falhar na previsão, continua sem clima
             console.log("⚠️ Previsão do tempo não disponível:", previsaoError);
           }
+        } else {
+          console.log(
+            "⚠️ Nenhuma localidade encontrada para:",
+            cepData.city,
+            cepData.state
+          );
         }
 
         // 5. Retornar resultado completo
