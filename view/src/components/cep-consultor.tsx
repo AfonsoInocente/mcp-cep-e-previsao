@@ -10,7 +10,6 @@ interface CepResult {
   city: string;
   neighborhood: string;
   street: string;
-  service: string;
   location_id?: number;
   clima?: Array<{
     condicao: string;
@@ -26,7 +25,7 @@ export function CepConsultor() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!cep.trim()) {
       toast.error("Digite um CEP válido");
       return;
@@ -106,7 +105,7 @@ export function CepConsultor() {
               <MapPin className="w-5 h-5" />
               <h2 className="text-lg font-semibold">Informações do Endereço</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div>
@@ -122,19 +121,17 @@ export function CepConsultor() {
                   <p className="text-white font-medium">{result.city}</p>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div>
                   <span className="text-slate-400 text-sm">Bairro:</span>
-                  <p className="text-white font-medium">{result.neighborhood}</p>
+                  <p className="text-white font-medium">
+                    {result.neighborhood}
+                  </p>
                 </div>
                 <div>
                   <span className="text-slate-400 text-sm">Rua:</span>
                   <p className="text-white font-medium">{result.street}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 text-sm">Serviço:</span>
-                  <p className="text-white font-medium">{result.service}</p>
                 </div>
               </div>
             </div>
@@ -147,7 +144,7 @@ export function CepConsultor() {
                 <Thermometer className="w-5 h-5" />
                 <h2 className="text-lg font-semibold">Previsão do Tempo</h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {result.clima.slice(0, 6).map((previsao, index) => (
                   <div
@@ -160,7 +157,7 @@ export function CepConsultor() {
                         Dia {index + 1}
                       </span>
                     </div>
-                    
+
                     <div className="space-y-1">
                       <p className="text-white font-medium text-sm">
                         {previsao.condicao}
@@ -177,7 +174,7 @@ export function CepConsultor() {
                   </div>
                 ))}
               </div>
-              
+
               {result.clima.length > 6 && (
                 <p className="text-slate-400 text-sm text-center">
                   +{result.clima.length - 6} dias adicionais disponíveis

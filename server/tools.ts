@@ -42,7 +42,6 @@ export const createConsultarCEPTool = (env: Env) =>
       city: z.string(),
       neighborhood: z.string(),
       street: z.string(),
-      service: z.string(),
     }),
     execute: async ({ context }) => {
       const { cep } = context;
@@ -50,10 +49,6 @@ export const createConsultarCEPTool = (env: Env) =>
       console.log(`🔍 CONSULTAR_CEP: Iniciando consulta para CEP ${cep}`);
 
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
-
-        console.log(`📞 CONSULTAR_CEP: Fazendo requisição para Brasil API...`);
         const response = await fetch(
           `https://brasilapi.com.br/api/cep/v1/${cep}`,
           {
@@ -62,16 +57,17 @@ export const createConsultarCEPTool = (env: Env) =>
               Accept: "application/json",
               "User-Agent": "Deco-MCP-Server/1.0",
             },
-            signal: controller.signal,
           }
         );
 
-        clearTimeout(timeoutId);
-
-        console.log(`📊 CONSULTAR_CEP: Status da resposta: ${response.status} ${response.statusText}`);
+        console.log(
+          `📊 CONSULTAR_CEP: Status da resposta: ${response.status} ${response.statusText}`
+        );
 
         if (!response.ok) {
-          console.log(`❌ CONSULTAR_CEP: Erro na API - ${response.status} ${response.statusText}`);
+          console.log(
+            `❌ CONSULTAR_CEP: Erro na API - ${response.status} ${response.statusText}`
+          );
           throw CEPErrorManager.handleAPIError(
             response.status,
             response.statusText
@@ -81,25 +77,21 @@ export const createConsultarCEPTool = (env: Env) =>
         const data = await response.json();
         console.log(`✅ CONSULTAR_CEP: Dados recebidos:`, data);
 
-        return {
+        const result = {
           cep: data.cep,
           state: data.state,
           city: data.city,
           neighborhood: data.neighborhood,
           street: data.street,
-          service: data.service,
         };
+
+        console.log(`✅ CONSULTAR_CEP: Resultado final:`, result);
+        return result;
       } catch (error) {
         console.log(`💥 CONSULTAR_CEP: Erro capturado:`, error);
-        
-        if (error instanceof CEPError) {
-          console.log(`🚨 CONSULTAR_CEP: Re-lançando CEPError:`, error.message, error.status);
-          throw error;
-        }
 
-        if (error instanceof Error && error.name === "AbortError") {
-          console.log(`⏰ CONSULTAR_CEP: Timeout detectado`);
-          throw CEPErrorManager.createTimeoutError();
+        if (error instanceof CEPError) {
+          throw error;
         }
 
         console.log(`🔥 CONSULTAR_CEP: Erro genérico, criando server error`);

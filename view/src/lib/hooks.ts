@@ -22,7 +22,10 @@ export const useConsultarCepEPrevisao = () => {
         const localidadeData = await client.BUSCAR_LOCALIDADE({
           nomeCidade: cepData.city,
         });
-        console.log("✅ Localidades encontradas:", localidadeData.localidades.length);
+        console.log(
+          "✅ Localidades encontradas:",
+          localidadeData.localidades.length
+        );
 
         // 3. Encontrar localidade que corresponde ao estado
         const localidadeEncontrada = localidadeData.localidades.find(
@@ -35,11 +38,18 @@ export const useConsultarCepEPrevisao = () => {
         // 4. Se encontrou localidade, buscar previsão do tempo
         if (localidadeEncontrada) {
           try {
-            console.log("🌤️ Chamando PREVISAO_TEMPO para cidade ID:", localidadeEncontrada.id);
+            console.log(
+              "🌤️ Chamando PREVISAO_TEMPO para cidade ID:",
+              localidadeEncontrada.id
+            );
             const previsaoData = await client.PREVISAO_TEMPO({
               codigoCidade: localidadeEncontrada.id,
             });
-            console.log("✅ Previsão obtida:", previsaoData.clima.length, "dias");
+            console.log(
+              "✅ Previsão obtida:",
+              previsaoData.clima.length,
+              "dias"
+            );
 
             // Formatar dados do clima
             clima = previsaoData.clima.map((item: any) => ({
@@ -60,11 +70,10 @@ export const useConsultarCepEPrevisao = () => {
           city: cepData.city,
           neighborhood: cepData.neighborhood,
           street: cepData.street,
-          service: cepData.service,
           location_id: localidadeEncontrada?.id,
           clima: clima,
         };
-        
+
         console.log("🎉 Resultado final:", result);
         return result;
       } catch (error: any) {

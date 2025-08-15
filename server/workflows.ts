@@ -47,7 +47,6 @@ const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
       city: z.string(),
       neighborhood: z.string(),
       street: z.string(),
-      service: z.string(),
       location_id: z.number().optional(),
       clima: z
         .array(
@@ -80,7 +79,6 @@ const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
         city: cepData.city,
         neighborhood: cepData.neighborhood,
         street: cepData.street,
-        service: cepData.service,
         location_id: localidadeEncontrada?.id,
       };
     })
@@ -101,7 +99,6 @@ const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
         city: cepData.city,
         neighborhood: cepData.neighborhood,
         street: cepData.street,
-        service: cepData.service,
         location_id: undefined,
         clima: undefined,
       };
@@ -118,7 +115,6 @@ const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
         city: cepData.city,
         neighborhood: cepData.neighborhood,
         street: cepData.street,
-        service: cepData.service,
         location_id: localidadeData.location_id,
         clima: undefined,
       };

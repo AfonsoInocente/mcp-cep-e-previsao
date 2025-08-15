@@ -7,7 +7,6 @@ type ToolsMCP = {
     city: string;
     neighborhood: string;
     street: string;
-    service: string;
   }>;
   BUSCAR_LOCALIDADE: (input: { nomeCidade: string }) => Promise<{
     localidades: Array<{

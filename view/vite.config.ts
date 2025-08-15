@@ -15,7 +15,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/mcp": {
-        target: "http://localhost:52000",
+        target: "http://localhost:8787",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/mcp/, "/mcp"),
       },
