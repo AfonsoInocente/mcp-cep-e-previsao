@@ -1,6 +1,4 @@
-import { useState, useRef, useEffect } from "react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,9 +6,12 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { useSistemaInteligente } from "../lib/hooks";
-import { client } from "../lib/rpc";
-import { Loader2, MapPin, Cloud, Search, Send, User, Bot } from "lucide-react";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { useSistemaInteligente } from "../lib/hooks.ts";
+import { ACTIONS, TOOL_IDS } from "../../../common/types/constants.ts";
+import { client } from "../lib/rpc.ts";
+import { Loader2, MapPin, Search, Send, User, Bot } from "lucide-react";
 
 interface Message {
   id: string;
@@ -37,18 +38,18 @@ export function ChatConsultor() {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [contexto, setContexto] = useState<{
-    aguardandoResposta: boolean;
-    tipoAguardando: "CEP" | "CIDADE" | null;
-    perguntaAnterior: string;
+  const [context, setContext] = useState<{
+    waitingForResponse: boolean;
+    waitingType: "ZIP_CODE" | "CITY" | null;
+    previousQuestion: string;
   }>({
-    aguardandoResposta: false,
-    tipoAguardando: null,
-    perguntaAnterior: "",
+    waitingForResponse: false,
+    waitingType: null,
+    previousQuestion: "",
   });
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const sistemaMutation = useSistemaInteligente();
+  const systemMutation = useSistemaInteligente();
 
   // Foca no input automaticamente
   useEffect(() => {
@@ -103,55 +104,66 @@ export function ChatConsultor() {
       if (option.cidadeId) {
         console.log("🌤️ Buscando previsão para cidade ID:", option.cidadeId);
 
-        const previsaoData = await (client as any).PREVISAO_TEMPO({
-          codigoCidade: option.cidadeId,
+        const forecastData = await (client as any)[TOOL_IDS.WEATHER_FORECAST]({
+          cityCode: option.cidadeId,
         });
 
-        const climaMessage = `🌤️ **Previsão do Tempo para ${option.text}:**\n${previsaoData.clima
-          .map(
-            (dia: any) =>
-              `📅 ${new Date(dia.data).toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}: ${dia.condicao_desc} (${dia.min}°C a ${dia.max}°C)`
-          )
-          .join("\n")}`;
-
-        addMessage(climaMessage, false, {
-          tipo: "clima",
-          dados: previsaoData,
-        });
-      } else {
-        // Se não tem cidadeId, processa como entrada normal
-        const resultado = await sistemaMutation.mutateAsync({
-          entrada_usuario: option.value,
-        });
-
-        addMessage(resultado.mensagem_inicial, false);
-
-        if (resultado.dados_cep) {
-          const cepMessage = `📍 **Endereço:**\n• CEP: ${resultado.dados_cep.cep}\n• Rua: ${resultado.dados_cep.street}\n• Bairro: ${resultado.dados_cep.neighborhood}\n• Cidade: ${resultado.dados_cep.city}\n• Estado: ${resultado.dados_cep.state}`;
-          addMessage(cepMessage, false, {
-            tipo: "cep",
-            dados: resultado.dados_cep,
-          });
-        }
-
-        if (resultado.dados_clima) {
-          const climaMessage = `🌤️ **Previsão do Tempo:**\n${resultado.dados_clima.clima
+        if (forecastData.weather && forecastData.weather.length > 0) {
+          const weatherMessage = `🌤️ **Previsão do Tempo para ${option.text}:**\n${forecastData.weather
             .map(
-              (dia: any) =>
-                `📅 ${new Date(dia.data).toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}: ${dia.condicao_desc} (${dia.min}°C a ${dia.max}°C)`
+              (day: any) =>
+                `📅 ${new Date(day.date).toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}: ${day.conditionDescription} (${day.minimum}°C a ${day.maximum}°C)`
             )
             .join("\n")}`;
-          addMessage(climaMessage, false, {
-            tipo: "clima",
-            dados: resultado.dados_clima,
+
+          addMessage(weatherMessage, false, {
+            type: "weather",
+            data: forecastData,
+          });
+        } else {
+          addMessage(
+            `⚠️ Previsão do tempo não disponível para ${option.text}.`,
+            false
+          );
+        }
+      } else {
+        // Se não tem cidadeId, processa como entrada normal
+        const result = await systemMutation.mutateAsync({
+          userInput: option.value,
+        });
+
+        addMessage(result.initialMessage, false);
+
+        if (result.zipCodeData) {
+          const zipCodeMessage = `📍 **Endereço:**\n• CEP: ${result.zipCodeData.zipcode}\n• Rua: ${result.zipCodeData.street}\n• Bairro: ${result.zipCodeData.neighborhood}\n• Cidade: ${result.zipCodeData.city}\n• Estado: ${result.zipCodeData.state}`;
+          addMessage(zipCodeMessage, false, {
+            type: "zipCode",
+            data: result.zipCodeData,
           });
         }
 
         if (
-          resultado.acao_executada !== "SOLICITAR_CEP" &&
-          resultado.acao_executada !== "SOLICITAR_LOCAL"
+          result.weatherData &&
+          result.weatherData.weather &&
+          result.weatherData.weather.length > 0
         ) {
-          addMessage(resultado.mensagem_final, false);
+          const weatherMessage = `🌤️ **Previsão do Tempo:**\n${result.weatherData.weather
+            .map(
+              (day: any) =>
+                `📅 ${new Date(day.date).toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}: ${day.conditionDescription} (${day.minimum}°C a ${day.maximum}°C)`
+            )
+            .join("\n")}`;
+          addMessage(weatherMessage, false, {
+            type: "weather",
+            data: result.weatherData,
+          });
+        }
+
+        if (
+          result.action !== ACTIONS.REQUEST_ZIP_CODE &&
+          result.action !== ACTIONS.REQUEST_LOCATION
+        ) {
+          addMessage(result.finalMessage, false);
         }
       }
     } catch (error: any) {
@@ -177,99 +189,100 @@ export function ChatConsultor() {
     setIsLoading(true);
 
     try {
-      let entradaProcessada = userInput;
+      let processedInput = userInput;
 
       // Se está aguardando resposta, processa com contexto
-      if (contexto.aguardandoResposta) {
-        if (contexto.tipoAguardando === "CEP") {
+      if (context.waitingForResponse) {
+        if (context.waitingType === "ZIP_CODE") {
           // Se está aguardando CEP, adiciona contexto
-          entradaProcessada = `CEP ${userInput}`;
-        } else if (contexto.tipoAguardando === "CIDADE") {
+          processedInput = `CEP ${userInput}`;
+        } else if (context.waitingType === "CITY") {
           // Se está aguardando cidade, adiciona contexto
-          entradaProcessada = `previsão do tempo em ${userInput}`;
+          processedInput = `previsão do tempo em ${userInput}`;
         }
 
         // Limpa o contexto após usar
-        setContexto({
-          aguardandoResposta: false,
-          tipoAguardando: null,
-          perguntaAnterior: "",
+        setContext({
+          waitingForResponse: false,
+          waitingType: null,
+          previousQuestion: "",
         });
       }
 
-      console.log("🔍 Processando entrada:", entradaProcessada);
+      console.log("🔍 Processando entrada:", processedInput);
 
-      const resultado = await sistemaMutation.mutateAsync({
-        entrada_usuario: entradaProcessada,
+      const result = await systemMutation.mutateAsync({
+        userInput: processedInput,
       });
 
-      console.log("✅ Resultado recebido:", resultado);
+      console.log("✅ Resultado recebido:", result);
 
       // Verifica se há múltiplas cidades para mostrar opções
-      if (
-        resultado.acao_executada === "MULTIPLAS_CIDADES" &&
-        resultado.cidades_encontradas
-      ) {
+      if (result.action === ACTIONS.MULTIPLE_CITIES && result.citiesFound) {
         console.log("🏙️ Múltiplas cidades encontradas, criando opções...");
 
-        const options = resultado.cidades_encontradas.map((cidade: any) => ({
-          id: cidade.id.toString(),
-          text: `${cidade.nome}/${cidade.estado}`,
-          value: cidade.nome,
-          cidadeId: cidade.id,
+        const options = result.citiesFound.map((city: any) => ({
+          id: city.id.toString(),
+          text: `${city.name}/${city.state}`,
+          value: city.name,
+          cidadeId: city.id,
         }));
 
-        addMessage(resultado.mensagem_inicial, false, undefined, options);
+        addMessage(result.initialMessage, false, undefined, options);
         return;
       }
 
       // Adiciona resposta da IA
-      addMessage(resultado.mensagem_inicial, false);
+      addMessage(result.initialMessage, false);
 
       // Atualiza contexto se for uma pergunta
-      if (resultado.acao_executada === "SOLICITAR_CEP") {
-        setContexto({
-          aguardandoResposta: true,
-          tipoAguardando: "CEP",
-          perguntaAnterior: resultado.mensagem_inicial,
+      if (result.action === ACTIONS.REQUEST_ZIP_CODE) {
+        setContext({
+          waitingForResponse: true,
+          waitingType: "ZIP_CODE",
+          previousQuestion: result.initialMessage,
         });
-      } else if (resultado.acao_executada === "SOLICITAR_LOCAL") {
-        setContexto({
-          aguardandoResposta: true,
-          tipoAguardando: "CIDADE",
-          perguntaAnterior: resultado.mensagem_inicial,
+      } else if (result.action === ACTIONS.REQUEST_LOCATION) {
+        setContext({
+          waitingForResponse: true,
+          waitingType: "CITY",
+          previousQuestion: result.initialMessage,
         });
       }
 
       // Se tem dados de CEP, adiciona como mensagem separada
-      if (resultado.dados_cep) {
-        const cepMessage = `📍 **Endereço:**\n• CEP: ${resultado.dados_cep.cep}\n• Rua: ${resultado.dados_cep.street}\n• Bairro: ${resultado.dados_cep.neighborhood}\n• Cidade: ${resultado.dados_cep.city}\n• Estado: ${resultado.dados_cep.state}`;
-        addMessage(cepMessage, false, {
-          tipo: "cep",
-          dados: resultado.dados_cep,
+      if (result.zipCodeData) {
+        const zipCodeMessage = `📍 **Endereço:**\n• CEP: ${result.zipCodeData.zipcode}\n• Rua: ${result.zipCodeData.street}\n• Bairro: ${result.zipCodeData.neighborhood}\n• Cidade: ${result.zipCodeData.city}\n• Estado: ${result.zipCodeData.state}`;
+        addMessage(zipCodeMessage, false, {
+          type: "zipCode",
+          data: result.zipCodeData,
         });
       }
 
       // Se tem dados de clima, adiciona como mensagem separada
-      if (resultado.dados_clima) {
-        const climaMessage = `🌤️ **Previsão do Tempo:**\n${resultado.dados_clima.clima
+      if (
+        result.weatherData &&
+        result.weatherData.weather &&
+        result.weatherData.weather.length > 0
+      ) {
+        const weatherMessage = `🌤️ **Previsão do Tempo:**\n${result.weatherData.weather
           .map(
-            (dia: any) =>
-              `📅 ${new Date(dia.data).toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}: ${dia.condicao_desc} (${dia.min}°C a ${dia.max}°C)`
+            (day: any) =>
+              `📅 ${new Date(day.date).toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}: ${day.conditionDescription} (${day.minimum}°C a ${day.maximum}°C)`
           )
           .join("\n")}`;
-        addMessage(climaMessage, false, {
-          tipo: "clima",
-          dados: resultado.dados_clima,
+        addMessage(weatherMessage, false, {
+          type: "weather",
+          data: result.weatherData,
         });
       }
 
       // Adiciona mensagem final se não for uma pergunta
       if (
-        resultado.acao_executada !== "SOLICITAR_CEP" &&
-        resultado.acao_executada !== "SOLICITAR_LOCAL"
+        result.action !== ACTIONS.REQUEST_ZIP_CODE &&
+        result.action !== ACTIONS.REQUEST_LOCATION
       ) {
-        addMessage(resultado.mensagem_final, false);
+        addMessage(result.finalMessage, false);
       }
     } catch (error: any) {
       console.error("Erro no sistema:", error);
@@ -279,10 +292,10 @@ export function ChatConsultor() {
       );
 
       // Limpa contexto em caso de erro
-      setContexto({
-        aguardandoResposta: false,
-        tipoAguardando: null,
-        perguntaAnterior: "",
+      setContext({
+        waitingForResponse: false,
+        waitingType: null,
+        previousQuestion: "",
       });
     } finally {
       setIsLoading(false);
@@ -326,58 +339,62 @@ export function ChatConsultor() {
             <div className="whitespace-pre-line text-sm">{message.text}</div>
 
             {/* Renderizar dados estruturados se existirem */}
-            {message.data?.tipo === "cep" && (
+            {message.data?.type === "zipCode" && (
               <div className="mt-3 p-3 bg-white rounded border">
                 <div className="grid grid-cols-1 gap-2 text-xs">
                   <div className="flex justify-between">
                     <span className="font-medium">CEP:</span>
-                    <span>{message.data.dados.cep}</span>
+                    <span>{message.data.data.zipcode}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Cidade:</span>
-                    <span>{message.data.dados.city}</span>
+                    <span>{message.data.data.city}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Estado:</span>
-                    <span>{message.data.dados.state}</span>
+                    <span>{message.data.data.state}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Bairro:</span>
-                    <span>{message.data.dados.neighborhood}</span>
+                    <span>{message.data.data.neighborhood}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Rua:</span>
-                    <span>{message.data.dados.street}</span>
+                    <span>{message.data.data.street}</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {message.data?.tipo === "clima" && (
-              <div className="mt-3 p-3 bg-white rounded border">
-                <div className="grid grid-cols-1 gap-2 text-xs">
-                  {message.data.dados.clima
-                    .slice(0, 3)
-                    .map((dia: any, index: number) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                      >
-                        <span className="font-medium">
-                          {new Date(dia.data).toLocaleDateString("pt-BR", {
-                            weekday: "short",
-                            day: "numeric",
-                          })}
-                        </span>
-                        <span className="text-xs">{dia.condicao_desc}</span>
-                        <span className="font-bold">
-                          {dia.min}° - {dia.max}°
-                        </span>
-                      </div>
-                    ))}
+            {message.data?.type === "weather" &&
+              message.data.data.weather &&
+              message.data.data.weather.length > 0 && (
+                <div className="mt-3 p-3 bg-white rounded border">
+                  <div className="grid grid-cols-1 gap-2 text-xs">
+                    {message.data.data.weather
+                      .slice(0, 3)
+                      .map((day: any, index: number) => (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                        >
+                          <span className="font-medium">
+                            {new Date(day.date).toLocaleDateString("pt-BR", {
+                              weekday: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                          <span className="text-xs">
+                            {day.conditionDescription}
+                          </span>
+                          <span className="font-bold">
+                            {day.minimum}° - {day.maximum}°
+                          </span>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Renderizar opções clicáveis se existirem */}
             {message.options && message.options.length > 0 && (
@@ -456,11 +473,11 @@ export function ChatConsultor() {
       {/* Input */}
       <Card className="rounded-none border-t">
         <CardContent className="p-4">
-          {contexto.aguardandoResposta && (
+          {context.waitingForResponse && (
             <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
               💡 Aguardando:{" "}
-              {contexto.tipoAguardando === "CEP" ? "CEP" : "cidade"} para{" "}
-              {contexto.tipoAguardando === "CEP"
+              {context.waitingType === "ZIP_CODE" ? "CEP" : "cidade"} para{" "}
+              {context.waitingType === "ZIP_CODE"
                 ? "endereço"
                 : "previsão do tempo"}
             </div>
@@ -471,8 +488,8 @@ export function ChatConsultor() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder={
-                contexto.aguardandoResposta
-                  ? contexto.tipoAguardando === "CEP"
+                context.waitingForResponse
+                  ? context.waitingType === "ZIP_CODE"
                     ? "Digite o CEP (ex: 01310-100)..."
                     : "Digite a cidade (ex: São Paulo)..."
                   : "Digite sua mensagem..."

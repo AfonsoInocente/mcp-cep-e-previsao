@@ -1,14 +1,10 @@
 import { createRoute, type RootRoute } from "@tanstack/react-router";
-import { ChatConsultor } from "@/components/chat-consultor";
-
-function HomeContent() {
-  return <ChatConsultor />;
-}
+import { ChatConsultor } from "../components/chat-consultor.tsx";
 
 function HomePage() {
   return (
-    <div className="bg-slate-900 min-h-screen">
-      <HomeContent />
+    <div className="bg-slate-900 min-h-screen flex items-center justify-center p-6">
+      <ChatConsultor />
     </div>
   );
 }

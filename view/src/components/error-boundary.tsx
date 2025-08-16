@@ -1,26 +1,34 @@
 import React from "react";
 
-type ErrorBoundaryProps = {
+interface ErrorBoundaryProps {
   children: React.ReactNode;
-  onError: (error: Error) => void;
   fallback?: React.ReactNode;
-};
+  onError?: (error: Error) => void;
+}
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps> {
-  state = {
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
+  override state = {
     hasError: false,
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
-      return this.props.fallback || <div>Error</div>;
+      return this.props.fallback || <div>Something went wrong.</div>;
     }
 
     return this.props.children;
   }
 
-  componentDidCatch(error: Error) {
-    this.props.onError(error);
-    this.setState({ hasError: true });
+  override componentDidCatch(error: Error) {
+    this.setState({ hasError: true, error });
+    this.props.onError?.(error);
   }
 }
