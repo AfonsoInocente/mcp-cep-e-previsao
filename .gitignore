@@ -19,3 +19,12 @@ count.txt
 .env
 .nitro
 .tanstack
+
+# Temporary files
+.tmp/
+.temp/
+*.tmp
+
+# Wrangler temporary files
+.wrangler/
+server/.wrangler/
