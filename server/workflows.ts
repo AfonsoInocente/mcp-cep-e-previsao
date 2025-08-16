@@ -23,6 +23,12 @@ import {
   createWeatherForecastTool,
   createIntelligentDecisorTool,
 } from "./tools/index.ts";
+import {
+  ZipCodeInputSchema,
+  ZipCodeWeatherSchema,
+  IntelligentWorkflowInputSchema,
+  IntelligentWorkflowOutputSchema,
+} from "../common/schemas/index.ts";
 
 const createZipCodeAndWeatherWorkflow = (env: Env) => {
   const zipCodeStep = createStepFromTool(createZipCodeLookupTool(env));
@@ -30,33 +36,9 @@ const createZipCodeAndWeatherWorkflow = (env: Env) => {
   const weatherStep = createStepFromTool(createWeatherForecastTool(env));
 
   return createWorkflow({
-    id: "CONSULTAR_CEP_E_PREVISAO_WORKFLOW",
-    inputSchema: z.object({
-      cep: z.string().transform((val) => {
-        const cleaned = val.replace(/\D/g, "");
-        if (cleaned.length !== 8) {
-          throw new Error("CEP deve conter exatamente 8 dígitos numéricos");
-        }
-        return cleaned;
-      }),
-    }),
-    outputSchema: z.object({
-      cep: z.string(),
-      state: z.string(),
-      city: z.string(),
-      neighborhood: z.string(),
-      street: z.string(),
-      location_id: z.number().optional(),
-      clima: z
-        .array(
-          z.object({
-            condicao: z.string(),
-            minima: z.number(),
-            maxima: z.number(),
-          })
-        )
-        .optional(),
-    }),
+    id: "ZIP_CODE_AND_WEATHER_WORKFLOW",
+    inputSchema: ZipCodeInputSchema,
+    outputSchema: ZipCodeWeatherSchema,
   })
     .then(zipCodeStep)
     .map(async ({ inputData }) => ({
@@ -65,67 +47,67 @@ const createZipCodeAndWeatherWorkflow = (env: Env) => {
     .then(citySearchStep)
     .map(async ({ inputData, getStepResult }) => {
       const zipCodeData = getStepResult(zipCodeStep);
-      const localidades = inputData.localidades;
+      const locales = inputData.locations;
 
       // Busca a localidade que corresponde ao estado do CEP
-      const localidadeEncontrada = localidades.find(
-        (localidade: any) => localidade.estado === zipCodeData.state
+      const foundedLocation = locales.find(
+        (locale: any) => locale.estado === zipCodeData.state
       );
 
       return {
-        cep: zipCodeData.cep,
+        zipcode: zipCodeData.zipcode,
         state: zipCodeData.state,
         city: zipCodeData.city,
         neighborhood: zipCodeData.neighborhood,
         street: zipCodeData.street,
-        location_id: localidadeEncontrada?.id,
+        location_id: foundedLocation?.id,
       };
     })
     .map(async ({ inputData, getStepResult }: any) => {
       const zipCodeData = getStepResult(zipCodeStep);
-      const localidadeData = inputData;
+      const localeData = inputData;
 
       // Sempre prepara para buscar previsão do tempo se tem location_id
-      if (localidadeData.location_id) {
+      if (localeData.location_id) {
         return {
-          codigoCidade: localidadeData.location_id,
+          cityCode: localeData.location_id,
         };
       }
 
       return {
-        cep: zipCodeData.cep,
+        zipcode: zipCodeData.zipcode,
         state: zipCodeData.state,
         city: zipCodeData.city,
         neighborhood: zipCodeData.neighborhood,
         street: zipCodeData.street,
         location_id: undefined,
-        clima: undefined,
+        weather: undefined,
       };
     })
     .then(weatherStep)
     .map(async ({ inputData, getStepResult }: any) => {
       const zipCodeData = getStepResult(zipCodeStep);
-      const localidadeData = getStepResult(citySearchStep);
+      const localeData = getStepResult(citySearchStep);
 
-      // Sempre retorna os dados básicos do CEP
+      // Sempre retorna os dados básicos do ZIP code
       const result = {
-        cep: zipCodeData.cep,
+        zipcode: zipCodeData.zipcode,
         state: zipCodeData.state,
         city: zipCodeData.city,
         neighborhood: zipCodeData.neighborhood,
         street: zipCodeData.street,
-        location_id: localidadeData.location_id,
-        clima: undefined,
+        location_id: localeData.location_id,
+        weather: undefined,
       };
 
-      // Se tem dados de previsão, adiciona o clima
+      // Se tem dados de previsão, adiciona o weather
       if (inputData && inputData.clima && Array.isArray(inputData.clima)) {
-        const climaFormatado = inputData.clima.map((item: any) => ({
-          condicao: item.condicao_desc,
-          minima: item.min,
-          maxima: item.max,
+        const formattedWeather = inputData.clima.map((item: any) => ({
+          condition: item.condicao_desc,
+          minimum: item.min,
+          maximum: item.max,
         }));
-        result.clima = climaFormatado;
+        result.weather = formattedWeather;
       }
 
       return result;
@@ -137,22 +119,16 @@ const createIntelligentMainWorkflow = (env: Env) => {
   const decisionStep = createStepFromTool(createIntelligentDecisorTool(env));
 
   return createWorkflow({
-    id: "WORKFLOW_PRINCIPAL_INTELIGENTE",
-    inputSchema: z.object({
-      entrada_usuario: z.string().min(1, "Entrada do usuário é obrigatória"),
-    }),
-    outputSchema: z.object({
-      mensagem_inicial: z.string(),
-      acao_executada: z.string(),
-      mensagem_final: z.string(),
-    }),
+    id: "INTELLIGENT_MAIN_WORKFLOW",
+    inputSchema: IntelligentWorkflowInputSchema,
+    outputSchema: IntelligentWorkflowOutputSchema,
   })
     .then(decisionStep as any)
     .map(async ({ inputData }) => {
       return {
-        mensagem_inicial: inputData.mensagem_amigavel,
-        acao_executada: inputData.acao,
-        mensagem_final: `✅ Análise concluída! ${inputData.mensagem_amigavel}`,
+        initialMessage: inputData.mensagem_amigavel,
+        executedAction: inputData.acao,
+        finalMessage: `✅ Analysis completed! ${inputData.mensagem_amigavel}`,
       };
     })
     .commit();
