@@ -1,90 +1,207 @@
-# Deco MCP app
+# 🌤️ MCP CEP e Previsão do Tempo
 
-A full-stack template for building
-[Model Context Protocol (MCP)](https://spec.modelcontextprotocol.io/) servers
-with a modern React frontend. This template provides a complete development
-environment where your MCP server not only exposes tools and workflows to AI
-agents but also serves a beautiful web interface built with React and Tailwind
-CSS.
+> **Assistente Inteligente para Consultas de CEP e Previsão Meteorológica**
 
-## ✨ Features
+Um sistema MCP (Model Context Protocol) completo que combina consultas de CEP e Previsão do Tempo através de uma interface de chat conversacional inteligente. O sistema utiliza IA para entender a intenção do usuário e fornecer informações precisas sobre endereços e condições meteorológicas.
 
-- **🤖 MCP Server**: Cloudflare Workers-based server with typed tools and
-  workflows
-- **⚛️ React Frontend**: Modern React app with Vite, TanStack Router, and
-  Tailwind CSS
-- **🎨 UI Components**: Pre-configured shadcn/ui components for rapid
-  development
-- **🔧 Type Safety**: Full TypeScript support with auto-generated RPC client
-  types
-- **🚀 Hot Reload**: Live development with automatic rebuilding for both
-  frontend and backend
-- **☁️ Ready to Deploy**: One-command deployment to Cloudflare Workers
+## 🚀 Funcionalidades
 
-## 🚀 Quick Start
+### 📍 **Consulta de CEPs**
 
-### Prerequisites
+- Busca completa de endereços por CEP
+- Informações detalhadas: rua, bairro, cidade, estado
+- Validação automática de CEPs
+- Interface estruturada para visualização dos dados
 
-- Node.js ≥22.0.0
-- [Deco CLI](https://deco.chat): `npm i -g deco-cli`
+### 🌤️ **Previsão do Tempo**
 
-### Setup
+- Previsão meteorológica para qualquer cidade brasileira
+- Dados de temperatura (mínima e máxima)
+- Condições climáticas detalhadas
+- Índice UV
+- Interface visual com cards organizados
+
+### 🤖 **Sistema Inteligente**
+
+- Análise de intenções usando IA (GPT-4o-mini)
+- Entendimento de linguagem natural
+- Resolução automática de ambiguidades (múltiplas cidades)
+- Interface de seleção com scroll para opções
+
+### 🦾 **Sistema de fallback robusto em caso de falha da IA**
+
+- Análise manual com regex e padrões
+- Detecção automática de CEPs e cidades
+- Validação via APIs externas
+- Tratamento gracioso de erros de rede
+
+### 💬 **Chat Conversacional**
+
+- Interface moderna e responsiva
+- Histórico de conversas
+- Feedback visual em tempo real
+- Tratamento de erros amigável
+
+## 🛠️ Tecnologias
+
+### **APIs e Serviços**
+
+- **Brasil API** - Consulta de CEPs
+- **CPTEC/INPE** - Previsão meteorológica
+- **OpenAI GPT-4o-mini** - Análise de intenções
+
+## 📦 Instalação
+
+### **Pré-requisitos**
+
+- Node.js >= 18.0.0
+- npm >= 8.0.0
+- Deno >= 2.0.0
+- Conta no [deco.chat](https://deco.chat)
+
+### **Passos**
+
+1. **Clone o repositório**
+
+   ```bash
+   git clone https://github.com/AfonsoInocente/mcp-cep-e-previsao.git
+   cd mcp-cep-e-previsao
+   ```
+
+2. **Instale as dependências**
+
+   ```bash
+   npm install
+   ```
+
+3. **Configure o projeto**
+
+   ```bash
+   npm run configure
+   ```
+
+4. **Inicie o desenvolvimento**
+   ```bash
+   npm run dev
+   ```
+
+## 🎯 Como Usar
+
+### **Exemplos de Consultas**
+
+O sistema entende consultas em linguagem natural:
+
+#### **CEP**
+
+```
+"CEP 01310-100"
+"Quero saber o endereço do CEP 20040-007"
+"01310-100"
+```
+
+#### **Previsão do Tempo**
+
+```
+"Previsão do tempo em São Paulo"
+"Como está o clima em Rio de Janeiro?"
+"Tempo em Belo Horizonte"
+"previsao ibitinga"
+```
+
+#### **CEP + Previsão**
+
+```
+"CEP 01310-100 com previsão do tempo"
+"Quero o endereço e clima do CEP 20040-007"
+```
+
+### **Interface de Seleção**
+
+Quando há múltiplas cidades com o mesmo nome, o sistema apresenta uma lista scrollável de opções para seleção.
+
+### **Fluxo de Dados**
+
+1. **Entrada do usuário** → Interface de chat
+2. **Análise de intenção** → IA (GPT-4o-mini)
+3. **Processamento** → Tools MCP específicas
+4. **Resposta estruturada** → Interface organizada
+
+## 🚀 Deploy
+
+### **Desenvolvimento**
 
 ```bash
-# Install dependencies
-npm install
-
-# Configure your app
-npm run configure
-
-# Start development server
 npm run dev
 ```
 
-The server will start on `http://localhost:8787` serving both your MCP endpoints
-and the React frontend.
+### **Produção**
 
-## 📁 Project Structure
-
-```
-├── server/           # MCP Server (Cloudflare Workers + Deco runtime)
-│   ├── main.ts      # Server entry point with tools & workflows
-│   └── deco.gen.ts  # Auto-generated integration types
-└── view/            # React Frontend (Vite + Tailwind CSS)
-    ├── src/
-    │   ├── lib/rpc.ts    # Typed RPC client for server communication
-    │   ├── routes/       # TanStack Router routes
-    │   └── components/   # UI components with Tailwind CSS
-    └── package.json
+```bash
+npm run deploy
 ```
 
-## 🛠️ Development Workflow
+### **Geração de Tipos**
 
-- **`npm run dev`** - Start development with hot reload
-- **`npm run gen`** - Generate types for external integrations
-- **`npm run gen:self`** - Generate types for your own tools/workflows
-- **`npm run deploy`** - Deploy to production
+```bash
+# Tipos de integrações externas
+npm run gen
 
-## 🔗 Frontend ↔ Server Communication
-
-The template includes a fully-typed RPC client that connects your React frontend
-to your MCP server:
-
-```typescript
-// Typed calls to your server tools and workflows
-const result = await client.MY_TOOL({ input: "data" });
-const workflowResult = await client.MY_WORKFLOW({ input: "data" });
+# Tipos do próprio servidor (requer servidor rodando)
+DECO_SELF_URL=<dev-url> npm run gen:self
 ```
 
-## 📖 Learn More
+## 🔧 Configuração
 
-This template is built for deploying primarily on top of the
-[Deco platform](https://deco.chat/about) which can be found at the
-[deco-cx/chat](https://github.com/deco-cx/chat) repository.
+### **Variáveis de Ambiente**
 
-Documentation can be found at [https://docs.deco.page](https://docs.deco.page)
+- `DECO_CHAT_WORKSPACE_API` - API do workspace Deco
+- `DECO_CHAT_API` - API global do Deco
+- Configurações de integração no dashboard deco.chat
 
----
+### **APIs Externas**
 
-**Ready to build your next MCP server with a beautiful frontend?
-[Get started now!](https://deco.chat)**
+- **Brasil API**: Consulta de CEPs (gratuita)
+- **CPTEC/INPE**: Previsão meteorológica (gratuita)
+- **OpenAI**: Análise de intenções (requer API key)
+
+## 📊 Funcionalidades Técnicas
+
+### **Sistema de Decisão Inteligente**
+
+- Análise automática de intenções
+- Extração de CEPs e cidades
+- Resolução de ambiguidades
+- Tratamento de erros robusto
+
+### **Interface Responsiva**
+
+- Design mobile-first
+- Componentes reutilizáveis
+- Estados de loading e erro
+- Feedback visual em tempo real
+
+### **Performance**
+
+- Cache inteligente com TanStack Query
+- Lazy loading de componentes
+- Otimização de bundle
+- CDN global (Cloudflare)
+
+## 🐛 Tratamento de Erros
+
+O sistema inclui tratamento robusto de erros:
+
+- **CEP inválido**: Validação e sugestões
+- **Cidade não encontrada**: Busca por alternativas
+- **API indisponível**: Fallbacks e retry
+- **Timeout**: Tratamento gracioso
+- **Erros de rede**: Mensagens amigáveis
+
+## 👨‍💻 Autor
+
+**Afonso Inocente**
+
+- GitHub: [@afonsoinocente](https://github.com/afonsoinocente)
+- LinkedIn: [Afonso Inocente](https://linkedin.com/in/afonsoinocente)
+
+**⭐ Se este projeto foi útil, considere dar uma estrela no repositório!**
