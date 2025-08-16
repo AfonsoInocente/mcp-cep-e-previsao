@@ -56,12 +56,14 @@ export const extractPossibleCityNames = (input: string): string[] => {
 export const extractBestCityName = (input: string): string | null => {
   // Primeiro, tenta padrões específicos de busca de cidade
   const cityPatterns = [
-    // Padrão: "clima em [cidade]"
-    /(?:clima|tempo|previsao|previsão)\s+(?:em|para|de|do|da)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|\.|$)/i,
+    // Padrão: "clima em [cidade]" ou "tempo em [cidade]"
+    /(?:clima|tempo)\s+(?:em|para|de|do|da)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|\.|$)/i,
+    // Padrão: "previsao em [cidade]" ou "previsão em [cidade]"
+    /(?:previsao|previsão)\s+(?:em|para|de|do|da)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|\.|$)/i,
     // Padrão: "em [cidade]"
     /(?:em|para|de|do|da)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|\.|$)/i,
-    // Padrão: "previsao [cidade]"
-    /(?:previsao|previsão|tempo|clima)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|\.|$)/i,
+    // Padrão: "previsao [cidade]" (sem preposição)
+    /(?:previsao|previsão)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|\.|$)/i,
   ];
 
   for (const pattern of cityPatterns) {
