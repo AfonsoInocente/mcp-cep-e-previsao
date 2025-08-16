@@ -422,7 +422,7 @@ export function ChatConsultor() {
             <div>
               <CardTitle className="flex items-center gap-2 text-lg text-white">
                 <Search className="h-5 w-5" />
-                Consulta Inteligente de CEP & Previsão
+                Consulta Inteligente de CEP & Previsão do Tempo
               </CardTitle>
               <CardDescription className="text-slate-400">
                 Converse naturalmente sobre CEPs e previsão do tempo
