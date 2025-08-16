@@ -8,8 +8,8 @@ import {
   TOOL_IDS,
 } from "../../../common/types";
 import type {
-  ZipCodeWeather,
-  CitySearchOutput,
+  ZipCodeResponse,
+  CitySearchResponse,
   CityLocation,
   WeatherCondition,
 } from "../../../common/schemas";
@@ -105,7 +105,7 @@ const extractCity = (input: string): string | null => {
  * API service functions
  */
 const apiService = {
-  async getZipCodeData(cep: string): Promise<ZipCodeWeather> {
+  async getZipCodeData(cep: string): Promise<ZipCodeResponse> {
     console.log("📞 Chamando ZIP_CODE_LOOKUP para:", cep);
     const zipcodeData = await (client as any)[TOOL_IDS.ZIP_CODE_LOOKUP]({
       zipcode: cep,
@@ -114,7 +114,7 @@ const apiService = {
     return zipcodeData;
   },
 
-  async getCityData(cityName: string): Promise<CitySearchOutput> {
+  async getCityData(cityName: string): Promise<CitySearchResponse> {
     console.log("🏙️ Chamando SEARCH_LOCALITY para cidade:", cityName);
     const localeData = await (client as any)[TOOL_IDS.CITY_SEARCH]({
       cityName: cityName,

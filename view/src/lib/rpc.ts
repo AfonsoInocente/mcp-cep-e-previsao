@@ -1,32 +1,36 @@
 import { createClient } from "@deco/workers-runtime/client";
 import { TOOL_IDS } from "../../../common/types/constants";
 import type {
-  ZipCodeInput,
-  ZipCodeWeather,
-  CitySearchInput,
-  CitySearchOutput,
-  WeatherForecastInput,
-  WeatherForecastOutput,
-  IntelligentWorkflowInput,
-  IntelligentDecisorOutput,
-} from "../../../common/schemas/zipcode-weather";
+  ZipCodeRequest,
+  ZipCodeResponse,
+  CitySearchRequest,
+  CitySearchResponse,
+  WeatherForecastRequest,
+  WeatherForecastResponse,
+  IntelligentWorkflowRequest,
+  IntelligentDecisorResponse,
+} from "../../../common/schemas";
 
 type ToolsMCP = {
   // ZIP Code lookup tool
-  [TOOL_IDS.ZIP_CODE_LOOKUP]: (input: ZipCodeInput) => Promise<ZipCodeWeather>;
+  [TOOL_IDS.ZIP_CODE_LOOKUP]: (
+    input: ZipCodeRequest
+  ) => Promise<ZipCodeResponse>;
 
   // City search tool
-  [TOOL_IDS.CITY_SEARCH]: (input: CitySearchInput) => Promise<CitySearchOutput>;
+  [TOOL_IDS.CITY_SEARCH]: (
+    input: CitySearchRequest
+  ) => Promise<CitySearchResponse>;
 
   // Weather forecast tool (returns English field names for API communication)
   [TOOL_IDS.WEATHER_FORECAST]: (
-    input: WeatherForecastInput
-  ) => Promise<WeatherForecastOutput>;
+    input: WeatherForecastRequest
+  ) => Promise<WeatherForecastResponse>;
 
   // Intelligent decisor tool
   [TOOL_IDS.INTELLIGENT_DECISOR]: (
-    input: IntelligentWorkflowInput
-  ) => Promise<IntelligentDecisorOutput>;
+    input: IntelligentWorkflowRequest
+  ) => Promise<IntelligentDecisorResponse>;
 };
 
 /**

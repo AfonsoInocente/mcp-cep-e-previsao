@@ -9,18 +9,16 @@ import { z } from "zod";
 import type { Env } from "../main.ts";
 import { TOOL_IDS } from "../../common/types/constants.ts";
 import { LocalidadeErrorManager, LocalidadeError } from "../error-manager.ts";
-import {
-  CitySearchInputSchema,
-  CitySearchOutputSchema,
-} from "../../common/schemas/index.ts";
+import { CitySearchRequestSchema } from "../../common/schemas/city-request.ts";
+import { CitySearchResponseSchema } from "../../common/schemas/city-response.ts";
 
 export const createCitySearchTool = (env: Env) =>
   createTool({
     id: TOOL_IDS.CITY_SEARCH,
     description:
       "Busca localidades (cidades) através do nome usando a API CPTEC da Brasil API",
-    inputSchema: CitySearchInputSchema,
-    outputSchema: CitySearchOutputSchema,
+    inputSchema: CitySearchRequestSchema,
+    outputSchema: CitySearchResponseSchema,
     execute: async ({ context }) => {
       const { cityName } = context;
 

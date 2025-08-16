@@ -13,18 +13,16 @@ import {
   QUERY_TYPES,
   TOOL_IDS,
 } from "../../common/types/constants.ts";
-import {
-  IntelligentWorkflowInputSchema,
-  IntelligentDecisorOutputSchema,
-} from "../../common/schemas/zipcode-weather.ts";
+import { IntelligentWorkflowRequestSchema } from "../../common/schemas/intelligent-request.ts";
+import { IntelligentDecisorResponseSchema } from "../../common/schemas/intelligent-response.ts";
 
 export const createIntelligentDecisorTool = (env: Env) =>
   createTool({
     id: TOOL_IDS.INTELLIGENT_DECISOR,
     description:
       "Analisa a entrada do usuário e decide se deve consultar apenas o CEP ou executar o fluxo completo com previsão do tempo",
-    inputSchema: IntelligentWorkflowInputSchema,
-    outputSchema: IntelligentDecisorOutputSchema,
+    inputSchema: IntelligentWorkflowRequestSchema,
+    outputSchema: IntelligentDecisorResponseSchema,
     execute: async ({ context }) => {
       const { userInput } = context;
 

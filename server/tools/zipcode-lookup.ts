@@ -9,18 +9,16 @@ import { z } from "zod";
 import type { Env } from "../main.ts";
 import { CEPErrorManager, CEPError } from "../error-manager.ts";
 import { ACTIONS, TOOL_IDS } from "../../common/types/constants.ts";
-import {
-  ZipCodeInputSchema,
-  ZipCodeWeatherSchema,
-} from "../../common/schemas/zipcode-weather.ts";
+import { ZipCodeRequestSchema } from "../../common/schemas/zipcode-request.ts";
+import { ZipCodeResponseSchema } from "../../common/schemas/zipcode-response.ts";
 
 export const createZipCodeLookupTool = (env: Env) =>
   createTool({
     id: TOOL_IDS.ZIP_CODE_LOOKUP,
     description:
       "Consulta informações de endereço através do CEP usando a Brasil API",
-    inputSchema: ZipCodeInputSchema,
-    outputSchema: ZipCodeWeatherSchema,
+    inputSchema: ZipCodeRequestSchema,
+    outputSchema: ZipCodeResponseSchema,
     execute: async ({ context }) => {
       const { zipcode } = context;
 
@@ -80,7 +78,7 @@ export const createZipCodeLookupTool = (env: Env) =>
 
         // Validar o resultado antes de retornar
         try {
-          const validatedResult = ZipCodeWeatherSchema.parse(result);
+          const validatedResult = ZipCodeResponseSchema.parse(result);
           console.log(
             `✅ ${TOOL_IDS.ZIP_CODE_LOOKUP}: Resultado validado com sucesso`
           );

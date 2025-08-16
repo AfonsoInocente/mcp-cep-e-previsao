@@ -8,18 +8,16 @@ import { createTool } from "@deco/workers-runtime/mastra";
 import { z } from "zod";
 import type { Env } from "../main.ts";
 import { TOOL_IDS } from "../../common/types/constants.ts";
-import {
-  DataAnalysisInputSchema,
-  DataAnalysisOutputSchema,
-} from "../../common/schemas/index.ts";
+import { DataAnalysisRequestSchema } from "../../common/schemas/data-analysis-request.ts";
+import { DataAnalysisResponseSchema } from "../../common/schemas/data-analysis-response.ts";
 
 export const createDataAnalysisTool = (env: Env) =>
   createTool({
     id: TOOL_IDS.DATA_ANALYSIS,
     description:
       "Analisa dados de CEP e previsão do tempo usando IA para fornecer insights e recomendações",
-    inputSchema: DataAnalysisInputSchema,
-    outputSchema: DataAnalysisOutputSchema,
+    inputSchema: DataAnalysisRequestSchema,
+    outputSchema: DataAnalysisResponseSchema,
     execute: async ({ context }) => {
       const { zipcode, state, city, neighborhood, street, weather } = context;
 

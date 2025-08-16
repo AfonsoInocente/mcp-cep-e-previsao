@@ -8,18 +8,16 @@ import { createTool } from "@deco/workers-runtime/mastra";
 import type { Env } from "../main.ts";
 import { TOOL_IDS } from "../../common/types/constants.ts";
 import { PrevisaoErrorManager, PrevisaoError } from "../error-manager.ts";
-import {
-  WeatherForecastInputSchema,
-  WeatherForecastOutputSchema,
-} from "../../common/schemas/zipcode-weather.ts";
+import { WeatherForecastRequestSchema } from "../../common/schemas/weather-request.ts";
+import { WeatherForecastResponseSchema } from "../../common/schemas/weather-response.ts";
 
 export const createWeatherForecastTool = (env: Env) =>
   createTool({
     id: TOOL_IDS.WEATHER_FORECAST,
     description:
       "Consulta previsão do tempo para uma cidade usando a API CPTEC da Brasil API",
-    inputSchema: WeatherForecastInputSchema,
-    outputSchema: WeatherForecastOutputSchema,
+    inputSchema: WeatherForecastRequestSchema,
+    outputSchema: WeatherForecastResponseSchema,
     execute: async ({ context }) => {
       const { cityCode } = context;
 

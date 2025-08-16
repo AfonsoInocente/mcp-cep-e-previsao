@@ -23,12 +23,10 @@ import {
   createWeatherForecastTool,
   createIntelligentDecisorTool,
 } from "./tools/index.ts";
-import {
-  ZipCodeInputSchema,
-  ZipCodeWeatherSchema,
-  IntelligentWorkflowInputSchema,
-  IntelligentWorkflowOutputSchema,
-} from "../common/schemas/index.ts";
+import { ZipCodeRequestSchema } from "../common/schemas/zipcode-request.ts";
+import { ZipCodeResponseSchema } from "../common/schemas/zipcode-response.ts";
+import { IntelligentWorkflowRequestSchema } from "../common/schemas/intelligent-request.ts";
+import { IntelligentWorkflowResponseSchema } from "../common/schemas/intelligent-response.ts";
 
 const createZipCodeAndWeatherWorkflow = (env: Env) => {
   const zipCodeStep = createStepFromTool(createZipCodeLookupTool(env));
@@ -37,8 +35,8 @@ const createZipCodeAndWeatherWorkflow = (env: Env) => {
 
   return createWorkflow({
     id: "ZIP_CODE_AND_WEATHER_WORKFLOW",
-    inputSchema: ZipCodeInputSchema,
-    outputSchema: ZipCodeWeatherSchema,
+    inputSchema: ZipCodeRequestSchema,
+    outputSchema: ZipCodeResponseSchema,
   })
     .then(zipCodeStep)
     .map(async ({ inputData }) => ({
@@ -120,8 +118,8 @@ const createIntelligentMainWorkflow = (env: Env) => {
 
   return createWorkflow({
     id: "INTELLIGENT_MAIN_WORKFLOW",
-    inputSchema: IntelligentWorkflowInputSchema,
-    outputSchema: IntelligentWorkflowOutputSchema,
+    inputSchema: IntelligentWorkflowRequestSchema,
+    outputSchema: IntelligentWorkflowResponseSchema,
   })
     .then(decisionStep as any)
     .map(async ({ inputData }) => {
