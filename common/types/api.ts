@@ -1,34 +1,27 @@
 // API Response types
-export interface ZipCodeData {
-  cep: string;
-  state: string;
-  city: string;
-  neighborhood: string;
-  street: string;
-}
-
-export interface CityData {
-  id: number;
-  nome: string;
-  estado: string;
-}
-
-export interface WeatherData {
-  clima: Array<{
-    condicao_desc: string;
-    min: number;
-    max: number;
+export interface IntelligentDecision {
+  action: string;
+  friendlyMessage: string;
+  extractedZipCode?: string;
+  extractedCity?: string;
+  foundCities?: Array<{
+    id: number;
+    name: string;
+    state: string;
   }>;
 }
 
-export interface LocalidadeResponse {
-  localidades: CityData[];
-}
-
-export interface IntelligentDecision {
-  acao: string;
-  mensagem_amigavel: string;
-  cep_extraido?: string;
-  cidade_extraida?: string;
-  cidades_encontradas?: string[];
+// Weather forecast response type (converted from BrasilAPI Portuguese fields)
+export interface WeatherForecastResponse {
+  city: string; // converted from 'cidade'
+  state: string; // converted from 'estado'
+  updatedAt: string; // converted from 'atualizado_em'
+  weather: Array<{
+    date: string; // converted from 'data'
+    condition: string;
+    conditionDescription: string; // converted from 'condicao_desc'
+    minimum: number; // converted from 'min'
+    maximum: number; // converted from 'max'
+    uvIndex: number; // converted from 'indice_uv'
+  }>;
 }
