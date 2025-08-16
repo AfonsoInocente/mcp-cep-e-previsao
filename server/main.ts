@@ -24,6 +24,10 @@ export type Env = DefaultEnv &
     ASSETS: {
       fetch: (request: Request) => Promise<Response>;
     };
+    BRASIL_API_BASE_URL: string;
+    BRASIL_API_ZIPCODE_LOOKUP: string;
+    BRASIL_API_WEATHER_FORECAST: string;
+    BRASIL_API_CITY_SEARCH: string;
   };
 
 const fallbackToView =

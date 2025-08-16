@@ -26,7 +26,7 @@ export const createWeatherForecastTool = (env: Env) =>
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
 
         const response = await fetch(
-          `https://brasilapi.com.br/api/cptec/v1/clima/previsao/${cityCode}`,
+          `${env.BRASIL_API_BASE_URL}${env.BRASIL_API_WEATHER_FORECAST}/${cityCode}`,
           {
             method: "GET",
             headers: {

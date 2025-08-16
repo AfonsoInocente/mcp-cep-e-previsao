@@ -149,7 +149,7 @@ export const manualAnalysisFallback = async (userInput: string, env: Env) => {
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
 
       const response = await fetch(
-        `https://brasilapi.com.br/api/cptec/v1/cidade/${encodeURIComponent(cityName)}`,
+        `${env.BRASIL_API_BASE_URL}${env.BRASIL_API_CITY_SEARCH}/${encodeURIComponent(cityName)}`,
         {
           method: "GET",
           headers: {

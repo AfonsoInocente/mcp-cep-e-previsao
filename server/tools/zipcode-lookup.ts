@@ -9,6 +9,7 @@ import { z } from "zod";
 import type { Env } from "../main.ts";
 import { CEPErrorManager, CEPError } from "../error-manager.ts";
 import { ACTIONS, TOOL_IDS } from "../../common/consts/constants.ts";
+
 import { ZipCodeRequestSchema } from "../../common/schemas/zipcode-request.ts";
 import { ZipCodeResponseSchema } from "../../common/schemas/zipcode-response.ts";
 
@@ -28,7 +29,7 @@ export const createZipCodeLookupTool = (env: Env) =>
 
       try {
         const response = await fetch(
-          `https://brasilapi.com.br/api/cep/v1/${zipcode}`,
+          `${env.BRASIL_API_BASE_URL}${env.BRASIL_API_ZIPCODE_LOOKUP}/${zipcode}`,
           {
             method: "GET",
             headers: {
