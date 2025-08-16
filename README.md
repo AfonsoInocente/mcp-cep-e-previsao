@@ -2,7 +2,7 @@
 
 > **Assistente Inteligente para Consultas de CEP e Previsão Meteorológica**
 
-Um sistema MCP (Model Context Protocol) completo que combina consultas de CEP e Previsão do Tempo através de uma interface de chat conversacional inteligente. O sistema utiliza IA para entender a intenção do usuário e fornecer informações precisas sobre endereços e condições meteorológicas.
+Um sistema MCP (Model Context Protocol) completo que combina consultas de CEP e Previsão do Tempo através de uma interface de chat conversacional inteligente. O sistema utiliza a [Deco](https://deco.chat/) com suas Tools, Workflows e AI_GENERATE_OBJECT + Fallback para entender a intenção do usuário e fornecer informações precisas sobre endereços e condições meteorológicas.
 
 ## 🚀 Funcionalidades
 
