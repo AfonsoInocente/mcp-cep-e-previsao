@@ -5,7 +5,8 @@
  */
 
 import type { Env } from "../main.ts";
-import { ACTIONS } from "../../common/types/constants.ts";
+import { ACTIONS } from "../../common/consts/constants.ts";
+import { WEATHER_KEYWORDS, NON_CITY_WORDS } from "../../common/consts";
 
 export const manualAnalysisFallback = async (userInput: string, env: Env) => {
   console.log("🔧 FALLBACK: Starting manual analysis for:", userInput);
@@ -42,10 +43,10 @@ export const manualAnalysisFallback = async (userInput: string, env: Env) => {
     }
   }
 
-  // 2. Check weather/climate keywords
-  const weatherKeywords =
-    /weather|climate|temperature|rain|sun|hot|cold|forecast/i;
-  const hasWeatherKeywords = weatherKeywords.test(userInput);
+  // 2. Check weather/climate keywords (usando constante importada)
+
+  const weatherRegex = new RegExp(WEATHER_KEYWORDS.join("|"), "i");
+  const hasWeatherKeywords = weatherRegex.test(userInput);
 
   // 3. Check ZIP code/address keywords
   const zipCodeKeywords =
@@ -67,11 +68,25 @@ export const manualAnalysisFallback = async (userInput: string, env: Env) => {
 
     // Patterns to extract city from phrases
     const cityPatterns = [
-      // Patterns with intermediate words (for, in, of)
-      /(?:forecast|weather|climate|temperature|zip|address|street|neighborhood|city|loc|local|location)\s+(?:for|in|of)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      // Patterns with intermediate words (for, in, of, em, para, de)
+      new RegExp(
+        `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+(?:for|in|of|em|para|de)\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+        "i"
+      ),
+      new RegExp(
+        `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:for|in|of|em|para|de)\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+        "i"
+      ),
 
       // Direct patterns (without intermediate words)
-      /(?:forecast|weather|climate|temperature|zip|address|street|neighborhood|city|loc|local|location)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      new RegExp(
+        `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+        "i"
+      ),
+      new RegExp(
+        `(?:${WEATHER_KEYWORDS.join("|")})\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+        "i"
+      ),
 
       // Specific patterns for weather queries
       /(?:how\s+is\s+the?\s*weather\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
@@ -106,26 +121,10 @@ export const manualAnalysisFallback = async (userInput: string, env: Env) => {
     console.log("🔧 FALLBACK: City detected/extracted, validating:", cityName);
 
     // Check if the extracted city makes sense (doesn't contain words that aren't cities)
-    const nonCityWords = [
-      "mass",
-      "pizza",
-      "food",
-      "recipe",
-      "car",
-      "motorcycle",
-      "house",
-      "work",
-      "school",
-      "hospital",
-      "bank",
-      "store",
-      "market",
-      "restaurant",
-    ];
     const cityWords = cityName.toLowerCase().split(/\s+/);
 
     const hasNonCityWords = cityWords.some((word) =>
-      nonCityWords.includes(word)
+      (NON_CITY_WORDS as readonly string[]).includes(word)
     );
 
     if (hasNonCityWords) {

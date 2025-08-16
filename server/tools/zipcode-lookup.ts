@@ -8,7 +8,7 @@ import { createTool } from "@deco/workers-runtime/mastra";
 import { z } from "zod";
 import type { Env } from "../main.ts";
 import { CEPErrorManager, CEPError } from "../error-manager.ts";
-import { ACTIONS, TOOL_IDS } from "../../common/types/constants.ts";
+import { ACTIONS, TOOL_IDS } from "../../common/consts/constants.ts";
 import { ZipCodeRequestSchema } from "../../common/schemas/zipcode-request.ts";
 import { ZipCodeResponseSchema } from "../../common/schemas/zipcode-response.ts";
 

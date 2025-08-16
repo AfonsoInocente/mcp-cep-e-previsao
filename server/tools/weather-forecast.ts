@@ -6,7 +6,7 @@
 
 import { createTool } from "@deco/workers-runtime/mastra";
 import type { Env } from "../main.ts";
-import { TOOL_IDS } from "../../common/types/constants.ts";
+import { TOOL_IDS } from "../../common/consts/constants.ts";
 import { PrevisaoErrorManager, PrevisaoError } from "../error-manager.ts";
 import { WeatherForecastRequestSchema } from "../../common/schemas/weather-request.ts";
 import { WeatherForecastResponseSchema } from "../../common/schemas/weather-response.ts";

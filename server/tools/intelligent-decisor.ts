@@ -12,7 +12,7 @@ import {
   ACTIONS,
   QUERY_TYPES,
   TOOL_IDS,
-} from "../../common/types/constants.ts";
+} from "../../common/consts/constants.ts";
 import { IntelligentWorkflowRequestSchema } from "../../common/schemas/intelligent-request.ts";
 import { IntelligentDecisorResponseSchema } from "../../common/schemas/intelligent-response.ts";
 
@@ -98,7 +98,7 @@ export const createIntelligentDecisorTool = (env: Env) =>
         prompt +=
           "- Se a entrada contém apenas CEP ou endereço → CONSULT_ZIP_CODE\n";
         prompt +=
-          '- Se a entrada menciona "tempo", "clima", "previsão", "temperatura", "chuva", "sol" E tem CEP → CONSULT_ZIP_CODE_AND_WEATHER\n';
+          '- Se a entrada menciona palavras relacionadas ao clima/tempo ("tempo", "clima", "previsão", "temperatura", "chuva", "sol", "vento", "nublado", "ensolarado", "quente", "frio", "umidade", etc.) E tem CEP → CONSULT_ZIP_CODE_AND_WEATHER\n';
         prompt +=
           "- Se a entrada pergunta sobre condições climáticas E tem CEP → CONSULT_ZIP_CODE_AND_WEATHER\n";
         prompt +=
@@ -119,11 +119,21 @@ export const createIntelligentDecisorTool = (env: Env) =>
           '- "CEP 01310-100 com previsão do tempo" → CONSULT_ZIP_CODE_AND_WEATHER\n';
         prompt +=
           '- "Quero o endereço e o tempo para o CEP 20040-007" → CONSULT_ZIP_CODE_AND_WEATHER\n';
+        prompt += '- "Clima no CEP 01310-100" → CONSULT_ZIP_CODE_AND_WEATHER\n';
+        prompt +=
+          '- "Temperatura para 01310-100" → CONSULT_ZIP_CODE_AND_WEATHER\n';
         prompt +=
           '- "Como está o tempo em São Paulo?" → CONSULT_WEATHER_DIRECT\n';
         prompt += '- "Temperatura em São Paulo" → CONSULT_WEATHER_DIRECT\n';
         prompt +=
           '- "Previsão do tempo para São Paulo" → CONSULT_WEATHER_DIRECT\n';
+        prompt += '- "Clima em Rio de Janeiro" → CONSULT_WEATHER_DIRECT\n';
+        prompt +=
+          '- "Temperatura para Belo Horizonte" → CONSULT_WEATHER_DIRECT\n';
+        prompt +=
+          '- "Como está o clima em Brasília?" → CONSULT_WEATHER_DIRECT\n';
+        prompt += '- "Previsão para Curitiba" → CONSULT_WEATHER_DIRECT\n';
+        prompt += '- "Tempo em Salvador" → CONSULT_WEATHER_DIRECT\n';
         prompt += '- "Qual é a melhor marca de carro?" → OUT_OF_SCOPE\n';
         prompt += '- "Como fazer um bolo?" → OUT_OF_SCOPE\n';
         prompt += '- "História do Brasil" → OUT_OF_SCOPE\n';
@@ -254,13 +264,21 @@ TAREFAS:
    - CEP + previsão do tempo
    - Fora do escopo (não relacionado a CEP ou tempo)
 
+PALAVRAS-CHAVE RELACIONADAS AO CLIMA/TEMPO:
+previsão/previsao, tempo, clima/climatico, temperatura, chuva, sol, vento, nublado, ensolarado, quente, frio, umidade/umido, pressão/pressao, meteorológico/meteorologico, etc.
+
 EXEMPLOS:
 - "01310-100" → CONSULT_ZIP_CODE
 - "São Paulo" → CONSULT_WEATHER_DIRECT
 - "Rio de Janeiro" → CONSULT_WEATHER_DIRECT
 - "Como está o tempo em São Paulo?" → CONSULT_WEATHER_DIRECT
+- "Clima em Brasília" → CONSULT_WEATHER_DIRECT
+- "Temperatura para Curitiba" → CONSULT_WEATHER_DIRECT
+- "Previsão em Salvador" → CONSULT_WEATHER_DIRECT
 - "CEP 01310-100" → CONSULT_ZIP_CODE
 - "Previsão do tempo para 01310-100" → CONSULT_ZIP_CODE_AND_WEATHER
+- "Clima no CEP 01310-100" → CONSULT_ZIP_CODE_AND_WEATHER
+- "Temperatura para 01310-100" → CONSULT_ZIP_CODE_AND_WEATHER
 - "Quero saber o endereço" → REQUEST_ZIP_CODE
 - "Previsão do tempo" → REQUEST_LOCATION
 - "Qual é a melhor marca de carro?" → OUT_OF_SCOPE

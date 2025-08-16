@@ -7,6 +7,7 @@ import {
   ACTIONS,
   TOOL_IDS,
 } from "../../../common/types";
+import { WEATHER_KEYWORDS, NON_CITY_WORDS } from "../../../common/consts";
 import type {
   ZipCodeResponse,
   CitySearchResponse,
@@ -79,19 +80,67 @@ const handleApiError = (error: any): string => {
  * Utility functions for data processing
  */
 const extractZipCode = (input: string): string | null => {
-  const zipCodeMatch = input.match(/\d{5}-?\d{3}/);
-  return zipCodeMatch ? zipCodeMatch[0].replace(/\D/g, "") : null;
+  // Padrões mais abrangentes para extrair CEP
+  const zipCodePatterns = [
+    // CEP com hífen
+    /\d{5}-\d{3}/,
+    // CEP sem hífen
+    /\d{8}/,
+    // CEP com espaços ou outros separadores
+    /\d{5}[-\s]?\d{3}/,
+  ];
+
+  for (const pattern of zipCodePatterns) {
+    const match = input.match(pattern);
+    if (match) {
+      // Remove todos os caracteres não numéricos
+      return match[0].replace(/\D/g, "");
+    }
+  }
+
+  return null;
 };
 
 const extractCity = (input: string): string | null => {
-  const cityMatch = input.match(
-    /(?:em|para|de|sobre\s+o?\s*tempo\s+em|clima\s+em|tempo\s+em)\s*([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.|$)/i
-  );
-  if (cityMatch) {
-    return cityMatch[1].trim();
+  // Usa a constante importada de weatherKeywords
+
+  // Padrões mais abrangentes para extrair cidade
+  const cityPatterns = [
+    // Padrões com palavras intermediárias
+    new RegExp(
+      `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+(?:em|para|de)\\s+)([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+      "i"
+    ),
+    /(?:em|para|de)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+
+    // Padrões diretos (sem palavras intermediárias)
+    new RegExp(
+      `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+)([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+      "i"
+    ),
+    new RegExp(
+      `(?:${WEATHER_KEYWORDS.join("|")})\\s+)([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+      "i"
+    ),
+  ];
+
+  for (const pattern of cityPatterns) {
+    const match = input.match(pattern);
+    if (match && match[1]) {
+      const city = match[1].trim();
+      // Verifica se a cidade extraída faz sentido (não contém palavras que não são cidades)
+      const cityWords = city.toLowerCase().split(/\s+/);
+      const hasNonCityWords = cityWords.some((word) =>
+        (NON_CITY_WORDS as readonly string[]).includes(word)
+      );
+
+      if (!hasNonCityWords && city.length > 2) {
+        return city;
+      }
+    }
   }
 
-  // Fallback: extract last word that looks like a city
+  // Fallback: extrai a última palavra que parece ser uma cidade
   const words = input.split(/\s+/);
   const possibleCities = words.filter(
     (word) => word.length > 2 && /^[A-Za-zÀ-ÿ]+$/.test(word)
@@ -317,9 +366,18 @@ export const useIntelligentSystem = () => {
             );
           }
 
-          const matchingCity = cityData.locations.find(
+          // Tenta encontrar cidade correspondente por estado
+          let matchingCity = cityData.locations.find(
             (localidade: CityLocation) => localidade.state === zipCodeData.state
           );
+
+          // Se não encontrar por estado, pega a primeira cidade
+          if (!matchingCity && cityData.locations.length > 0) {
+            console.log(
+              "⚠️ Cidade não encontrada por estado, usando primeira opção"
+            );
+            matchingCity = cityData.locations[0];
+          }
 
           let weatherData = undefined;
           if (matchingCity) {
@@ -327,9 +385,14 @@ export const useIntelligentSystem = () => {
               weatherData = await apiService.getWeatherData(matchingCity.id);
             } catch (weatherError) {
               console.log(
-                "⚠️ Previsão do tempo não disponível para esta cidade."
+                "⚠️ Previsão do tempo não disponível para esta cidade:",
+                weatherError
               );
             }
+          } else {
+            console.log(
+              "⚠️ Nenhuma cidade encontrada para buscar previsão do tempo"
+            );
           }
 
           return {
@@ -353,14 +416,42 @@ export const useIntelligentSystem = () => {
             );
           }
 
+          console.log("🏙️ Buscando cidade para previsão do tempo:", city);
+
           const cityData = await apiService.getCityData(city);
 
           if (!cityData.locations || cityData.locations.length === 0) {
             throw new Error(`CITY_NOT_FOUND: Cidade '${city}' não encontrada.`);
           }
 
+          // Se há múltiplas cidades, retorna para o usuário escolher
+          if (cityData.locations.length > 1) {
+            console.log(
+              "🏙️ Múltiplas cidades encontradas:",
+              cityData.locations
+            );
+            return {
+              initialMessage: decision.friendlyMessage,
+              action: ACTIONS.MULTIPLE_CITIES,
+              zipCodeData: undefined,
+              weatherData: undefined,
+              citiesFound: cityData.locations,
+              finalMessage: decision.friendlyMessage,
+            };
+          }
+
           const selectedCity = cityData.locations[0];
-          const weatherData = await apiService.getWeatherData(selectedCity.id);
+          console.log("🌤️ Buscando previsão para cidade:", selectedCity.name);
+
+          let weatherData;
+          try {
+            weatherData = await apiService.getWeatherData(selectedCity.id);
+          } catch (weatherError) {
+            console.log("⚠️ Erro ao buscar previsão do tempo:", weatherError);
+            throw new Error(
+              `Previsão do tempo não disponível para ${selectedCity.name}`
+            );
+          }
 
           return {
             initialMessage: decision.friendlyMessage,

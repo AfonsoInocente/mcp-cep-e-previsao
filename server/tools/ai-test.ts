@@ -7,7 +7,7 @@
 import { createTool } from "@deco/workers-runtime/mastra";
 import { z } from "zod";
 import type { Env } from "../main.ts";
-import { TOOL_IDS } from "../../common/types/constants.ts";
+import { TOOL_IDS } from "../../common/consts/constants.ts";
 
 export const createAITestTool = (env: Env) =>
   createTool({

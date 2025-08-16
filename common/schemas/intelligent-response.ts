@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACTIONS } from "../types/constants.ts";
+import { ACTIONS } from "../consts/constants.ts";
 import { CityLocationSchema } from "./base-schemas.ts";
 
 /**

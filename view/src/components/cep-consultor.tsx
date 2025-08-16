@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "./ui/card";
 import { useSistemaInteligente } from "../lib/hooks";
-import { ACTIONS } from "../../../common/types/constants.ts";
+import { ACTIONS } from "../../../common/consts/constants.ts";
 import { Loader2, MapPin, Cloud, Search } from "lucide-react";
 
 export function CepConsultor() {
@@ -173,9 +173,7 @@ export function CepConsultor() {
                     <p className="text-sm font-medium text-muted-foreground">
                       Bairro
                     </p>
-                    <p className="text-lg">
-                      {result.zipCodeData.neighborhood}
-                    </p>
+                    <p className="text-lg">{result.zipCodeData.neighborhood}</p>
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-sm font-medium text-muted-foreground">
@@ -197,8 +195,8 @@ export function CepConsultor() {
                   Previsão do Tempo
                 </CardTitle>
                 <CardDescription>
-                  {result.weatherData.cidade}, {result.weatherData.estado}{" "}
-                  - Atualizado em{" "}
+                  {result.weatherData.cidade}, {result.weatherData.estado} -
+                  Atualizado em{" "}
                   {new Date(result.weatherData.atualizado_em).toLocaleString(
                     "pt-BR"
                   )}
@@ -206,29 +204,27 @@ export function CepConsultor() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {result.weatherData.clima.map(
-                    (day: any, index: number) => (
-                      <div key={index} className="border rounded-lg p-4">
-                        <p className="font-semibold text-sm">
-                          {new Date(day.data).toLocaleDateString("pt-BR", {
-                            weekday: "short",
-                            day: "numeric",
-                            month: "short",
-                          })}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {day.condicao_desc}
-                        </p>
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-lg font-bold">{day.min}°</span>
-                          <span className="text-lg">{day.max}°</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          UV: {day.indice_uv}
-                        </p>
+                  {result.weatherData.clima.map((day: any, index: number) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <p className="font-semibold text-sm">
+                        {new Date(day.data).toLocaleDateString("pt-BR", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {day.condicao_desc}
+                      </p>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-lg font-bold">{day.min}°</span>
+                        <span className="text-lg">{day.max}°</span>
                       </div>
-                    )
-                  )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        UV: {day.indice_uv}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

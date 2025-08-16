@@ -1,5 +1,5 @@
 import { createClient } from "@deco/workers-runtime/client";
-import { TOOL_IDS } from "../../../common/types/constants";
+import { TOOL_IDS } from "../../../common/consts/constants";
 import type {
   ZipCodeRequest,
   ZipCodeResponse,

@@ -9,7 +9,8 @@ import {
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useSistemaInteligente } from "../lib/hooks.ts";
-import { ACTIONS, TOOL_IDS } from "../../../common/types/constants.ts";
+import { ACTIONS, TOOL_IDS } from "../../../common/consts/constants.ts";
+import { WEATHER_KEYWORDS } from "../../../common/consts";
 import { client } from "../lib/rpc.ts";
 import { Loader2, MapPin, Search, Send, User, Bot } from "lucide-react";
 
@@ -58,12 +59,19 @@ export function ChatConsultor() {
     }
   }, []);
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   // Foca no input quando termina de carregar
   useEffect(() => {
     if (!isLoading && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isLoading]);
+
+  // Scroll automático para a última mensagem
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const addMessage = (
     text: string,
@@ -77,7 +85,7 @@ export function ChatConsultor() {
     }>
   ) => {
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       text,
       isUser,
       timestamp: new Date(),
@@ -161,7 +169,8 @@ export function ChatConsultor() {
 
         if (
           result.action !== ACTIONS.REQUEST_ZIP_CODE &&
-          result.action !== ACTIONS.REQUEST_LOCATION
+          result.action !== ACTIONS.REQUEST_LOCATION &&
+          result.finalMessage !== result.initialMessage
         ) {
           addMessage(result.finalMessage, false);
         }
@@ -207,6 +216,18 @@ export function ChatConsultor() {
           waitingType: null,
           previousQuestion: "",
         });
+      } else {
+        // Se não está aguardando resposta, verifica se a entrada já contém palavras-chave de clima
+        const hasWeatherKeyword = WEATHER_KEYWORDS.some((keyword) =>
+          userInput.toLowerCase().includes(keyword.toLowerCase())
+        );
+
+        if (hasWeatherKeyword) {
+          console.log(
+            "🌤️ Palavra-chave de clima detectada na entrada:",
+            userInput
+          );
+        }
       }
 
       console.log("🔍 Processando entrada:", processedInput);
@@ -277,10 +298,11 @@ export function ChatConsultor() {
         });
       }
 
-      // Adiciona mensagem final se não for uma pergunta
+      // Adiciona mensagem final se não for uma pergunta e se for diferente da mensagem inicial
       if (
         result.action !== ACTIONS.REQUEST_ZIP_CODE &&
-        result.action !== ACTIONS.REQUEST_LOCATION
+        result.action !== ACTIONS.REQUEST_LOCATION &&
+        result.finalMessage !== result.initialMessage
       ) {
         addMessage(result.finalMessage, false);
       }
@@ -468,6 +490,8 @@ export function ChatConsultor() {
             </div>
           </div>
         )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
