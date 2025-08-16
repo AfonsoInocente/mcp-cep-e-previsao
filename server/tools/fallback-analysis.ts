@@ -5,162 +5,152 @@
  */
 
 import type { Env } from "../main.ts";
+import { ACTIONS } from "../../common/types/constants.ts";
 
-export const manualAnalysisFallback = async (
-  entrada_usuario: string,
-  env: Env
-) => {
-  console.log("🔧 FALLBACK: Iniciando análise manual para:", entrada_usuario);
+export const manualAnalysisFallback = async (userInput: string, env: Env) => {
+  console.log("🔧 FALLBACK: Starting manual analysis for:", userInput);
 
-  // 1. Verificar se é um CEP direto
-  const cepMatch = entrada_usuario.match(/\d{5}-?\d{3}/);
-  if (cepMatch) {
-    console.log("🔧 FALLBACK: CEP identificado:", cepMatch[0]);
+  // 1. Check if it's a direct ZIP code
+  const zipCodeMatch = userInput.match(/\d{5}-?\d{3}/);
+  if (zipCodeMatch) {
+    console.log("🔧 FALLBACK: ZIP code identified:", zipCodeMatch[0]);
 
-    // Verificar se há menção a clima/tempo/previsão
-    const temClima =
-      /clima|tempo|previsão|previsao|temperatura|chuva|sol/i.test(
-        entrada_usuario
-      );
+    // Check if there's mention of weather/climate/forecast
+    const hasWeather = /weather|climate|forecast|temperature|rain|sun/i.test(
+      userInput
+    );
 
-    if (temClima) {
-      console.log("🔧 FALLBACK: CEP + clima detectado");
+    if (hasWeather) {
+      console.log("🔧 FALLBACK: ZIP code + weather detected");
       return {
-        acao: "CONSULTAR_CEP_E_PREVISAO" as const,
-        cep_extraido: cepMatch[0].replace(/\D/g, ""),
-        cidade_extraida: undefined,
-        justificativa: "CEP identificado com menção a clima/tempo",
-        mensagem_amigavel: `Vou buscar o endereço e a previsão do tempo para o CEP ${cepMatch[0]}! 😊`,
+        action: ACTIONS.CONSULT_ZIP_CODE_AND_WEATHER,
+        extractedZipCode: zipCodeMatch[0].replace(/\D/g, ""),
+        extractedCity: undefined,
+        justification: "CEP identificado com menção ao clima",
+        friendlyMessage: `Vou buscar o endereço e a previsão do tempo para o CEP ${zipCodeMatch[0]}! 😊`,
+        foundCities: undefined,
       };
     } else {
       return {
-        acao: "CONSULTAR_CEP" as const,
-        cep_extraido: cepMatch[0].replace(/\D/g, ""),
-        cidade_extraida: undefined,
-        justificativa: "CEP identificado na entrada",
-        mensagem_amigavel:
-          "Vou buscar as informações do endereço para você! 😊",
-        cidades_encontradas: undefined,
+        action: ACTIONS.CONSULT_ZIP_CODE,
+        extractedZipCode: zipCodeMatch[0].replace(/\D/g, ""),
+        extractedCity: undefined,
+        justification: "CEP identificado na entrada",
+        friendlyMessage: "Vou buscar as informações do endereço para você! 😊",
+        foundCities: undefined,
       };
     }
   }
 
-  // 2. Verificar palavras-chave de clima/tempo
-  const palavrasClima =
-    /tempo|clima|temperatura|chuva|sol|calor|frio|weather|previsão|previsao/i;
-  const temPalavrasClima = palavrasClima.test(entrada_usuario);
+  // 2. Check weather/climate keywords
+  const weatherKeywords =
+    /weather|climate|temperature|rain|sun|hot|cold|forecast/i;
+  const hasWeatherKeywords = weatherKeywords.test(userInput);
 
-  // 3. Verificar palavras-chave de CEP/endereço
-  const palavrasCEP =
-    /cep|endereço|endereco|rua|bairro|cidade|city|loc|local|localidade/i;
-  const temPalavrasCEP = palavrasCEP.test(entrada_usuario);
+  // 3. Check ZIP code/address keywords
+  const zipCodeKeywords =
+    /zip|address|street|neighborhood|city|loc|local|location/i;
+  const hasZipCodeKeywords = zipCodeKeywords.test(userInput);
 
-  // 4. Verificar se parece ser apenas o nome de uma cidade OU extrair cidade de frases
-  const apenasCidade = entrada_usuario.match(/^([A-Za-zÀ-ÿ\s]+?)$/);
-  const pareceCidade =
-    apenasCidade &&
-    apenasCidade[1].trim().split(/\s+/).length <= 3 &&
-    /^[A-Za-zÀ-ÿ\s]+$/.test(apenasCidade[1].trim()) &&
-    apenasCidade[1].trim().length > 2;
+  // 4. Check if it looks like just a city name OR extract city from phrases
+  const justCity = userInput.match(/^([A-Za-zÀ-ÿ\s]+?)$/);
+  const looksLikeCity =
+    justCity &&
+    justCity[1].trim().split(/\s+/).length <= 3 &&
+    /^[A-Za-zÀ-ÿ\s]+$/.test(justCity[1].trim()) &&
+    justCity[1].trim().length > 2;
 
-  // 5. Tentar extrair cidade de frases como "previsão para [cidade]"
-  let cidadeExtraida = undefined;
-  if (temPalavrasClima || temPalavrasCEP) {
-    console.log(
-      "🔧 FALLBACK: Tentando extrair cidade de frase:",
-      entrada_usuario
-    );
+  // 5. Try to extract city from phrases like "forecast for [city]"
+  let extractedCity = undefined;
+  if (hasWeatherKeywords || hasZipCodeKeywords) {
+    console.log("🔧 FALLBACK: Trying to extract city from phrase:", userInput);
 
-    // Padrões para extrair cidade de frases
-    const padroesCidade = [
-      // Padrões com palavras intermediárias (para, em, de)
-      /(?:previsão|previsao|clima|tempo|temperatura|cep|endereço|endereco|rua|bairro|cidade|city|loc|local|localidade)\s+(?:para|em|de)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+    // Patterns to extract city from phrases
+    const cityPatterns = [
+      // Patterns with intermediate words (for, in, of)
+      /(?:forecast|weather|climate|temperature|zip|address|street|neighborhood|city|loc|local|location)\s+(?:for|in|of)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
 
-      // Padrões diretos (sem palavras intermediárias)
-      /(?:previsão|previsao|clima|tempo|temperatura|cep|endereço|endereco|rua|bairro|cidade|city|loc|local|localidade)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      // Direct patterns (without intermediate words)
+      /(?:forecast|weather|climate|temperature|zip|address|street|neighborhood|city|loc|local|location)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
 
-      // Padrões específicos para consultas de clima
-      /(?:como\s+está\s+o?\s*clima\s+em)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-      /(?:temperatura\s+em)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-      /(?:clima\s+em)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      // Specific patterns for weather queries
+      /(?:how\s+is\s+the?\s*weather\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      /(?:temperature\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      /(?:weather\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
 
-      // Padrões para consultas de endereço
-      /(?:endereço|endereco)\s+(?:de|do|da)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-      /(?:rua|bairro)\s+(?:de|do|da)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      // Patterns for address queries
+      /(?:address)\s+(?:of|from)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      /(?:street|neighborhood)\s+(?:of|from)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
     ];
 
-    for (let i = 0; i < padroesCidade.length; i++) {
-      const padrao = padroesCidade[i];
-      const match = entrada_usuario.match(padrao);
+    for (let i = 0; i < cityPatterns.length; i++) {
+      const pattern = cityPatterns[i];
+      const match = userInput.match(pattern);
       console.log(
-        `🔧 FALLBACK: Testando padrão ${i + 1}:`,
-        padrao.source,
-        "Resultado:",
+        `🔧 FALLBACK: Testing pattern ${i + 1}:`,
+        pattern.source,
+        "Result:",
         match
       );
       if (match && match[1]) {
-        cidadeExtraida = match[1].trim();
-        console.log("🔧 FALLBACK: Cidade extraída de frase:", cidadeExtraida);
+        extractedCity = match[1].trim();
+        console.log("🔧 FALLBACK: City extracted from phrase:", extractedCity);
         break;
       }
     }
   }
 
-  // 6. Se parece ser uma cidade OU se extraímos cidade de uma frase, validar usando a API
-  if ((pareceCidade && !temPalavrasCEP) || cidadeExtraida) {
-    const nomeCidade =
-      cidadeExtraida || (apenasCidade ? apenasCidade[1].trim() : "");
-    console.log(
-      "🔧 FALLBACK: Cidade detectada/extraída, validando:",
-      nomeCidade
-    );
+  // 6. If it looks like a city OR if we extracted city from a phrase, validate using API
+  if ((looksLikeCity && !hasZipCodeKeywords) || extractedCity) {
+    const cityName = extractedCity || (justCity ? justCity[1].trim() : "");
+    console.log("🔧 FALLBACK: City detected/extracted, validating:", cityName);
 
-    // Verificar se a cidade extraída faz sentido (não contém palavras que não são cidades)
-    const palavrasNaoCidade = [
-      "massa",
+    // Check if the extracted city makes sense (doesn't contain words that aren't cities)
+    const nonCityWords = [
+      "mass",
       "pizza",
-      "comida",
-      "receita",
-      "carro",
-      "moto",
-      "casa",
-      "trabalho",
-      "escola",
+      "food",
+      "recipe",
+      "car",
+      "motorcycle",
+      "house",
+      "work",
+      "school",
       "hospital",
-      "banco",
-      "loja",
-      "mercado",
-      "restaurante",
+      "bank",
+      "store",
+      "market",
+      "restaurant",
     ];
-    const palavrasCidade = nomeCidade.toLowerCase().split(/\s+/);
+    const cityWords = cityName.toLowerCase().split(/\s+/);
 
-    const temPalavrasNaoCidade = palavrasCidade.some((palavra) =>
-      palavrasNaoCidade.includes(palavra)
+    const hasNonCityWords = cityWords.some((word) =>
+      nonCityWords.includes(word)
     );
 
-    if (temPalavrasNaoCidade) {
+    if (hasNonCityWords) {
       console.log(
-        "🔧 FALLBACK: Cidade contém palavras que não são cidades:",
-        nomeCidade
+        "🔧 FALLBACK: City contains words that aren't cities:",
+        cityName
       );
       return {
-        acao: "CONSULTA_FORA_ESCOPO" as const,
-        cep_extraido: undefined,
-        cidade_extraida: undefined,
-        justificativa: "Consulta não relacionada a CEP ou clima",
-        mensagem_amigavel:
+        action: ACTIONS.OUT_OF_SCOPE,
+        extractedZipCode: undefined,
+        extractedCity: undefined,
+        justification: "Consulta não relacionada a CEP ou clima",
+        friendlyMessage:
           "Desculpe, só posso ajudar com consultas de CEP e previsão do tempo. Pode me perguntar sobre endereços ou clima? 😊",
-        cidades_encontradas: undefined,
+        foundCities: undefined,
       };
     }
 
     try {
-      // Usar a API diretamente para validar a cidade
+      // Use API directly to validate the city
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
 
       const response = await fetch(
-        `https://brasilapi.com.br/api/cptec/v1/cidade/${encodeURIComponent(nomeCidade)}`,
+        `https://brasilapi.com.br/api/cptec/v1/cidade/${encodeURIComponent(cityName)}`,
         {
           method: "GET",
           headers: {
@@ -174,106 +164,104 @@ export const manualAnalysisFallback = async (
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        console.log("🔧 FALLBACK: Cidade não encontrada na API:", nomeCidade);
+        console.log("🔧 FALLBACK: City not found in API:", cityName);
         return {
-          acao: "CIDADE_NAO_ENCONTRADA" as const,
-          cep_extraido: undefined,
-          cidade_extraida: nomeCidade,
-          justificativa: "Cidade não encontrada na base de dados",
-          mensagem_amigavel: `Desculpe, não encontrei a cidade "${nomeCidade}" na base de dados. Pode verificar o nome ou tentar uma cidade próxima? 😊`,
-          cidades_encontradas: [],
+          action: ACTIONS.CITY_NOT_FOUND,
+          extractedZipCode: undefined,
+          extractedCity: cityName,
+          justification: "City not found in database",
+          friendlyMessage: `Desculpe, não consegui encontrar a cidade "${cityName}" no banco de dados. Pode verificar o nome ou tentar uma cidade próxima? 😊`,
+          foundCities: [],
         };
       }
 
       const data = await response.json();
-      const localidades = data.map((localidade: any) => ({
-        id: localidade.id,
-        nome: localidade.nome,
-        estado: localidade.estado,
+      const locations = data.map((location: any) => ({
+        id: location.id,
+        name: location.nome,
+        state: location.estado,
       }));
 
-      if (localidades.length === 0) {
-        console.log("🔧 FALLBACK: Cidade não encontrada:", nomeCidade);
+      if (locations.length === 0) {
+        console.log("🔧 FALLBACK: City not found:", cityName);
         return {
-          acao: "CIDADE_NAO_ENCONTRADA" as const,
-          cep_extraido: undefined,
-          cidade_extraida: nomeCidade,
-          justificativa: "Cidade não encontrada na base de dados",
-          mensagem_amigavel: `Desculpe, não encontrei a cidade "${nomeCidade}" na base de dados. Pode verificar o nome ou tentar uma cidade próxima? 😊`,
-          cidades_encontradas: [],
+          action: ACTIONS.CITY_NOT_FOUND,
+          extractedZipCode: undefined,
+          extractedCity: cityName,
+          justification: "City not found in database",
+          friendlyMessage: `Desculpe, não consegui encontrar a cidade "${cityName}" no banco de dados. Pode verificar o nome ou tentar uma cidade próxima? 😊`,
+          foundCities: [],
         };
-      } else if (localidades.length === 1) {
-        console.log("🔧 FALLBACK: Cidade única encontrada:", localidades[0]);
+      } else if (locations.length === 1) {
+        console.log("🔧 FALLBACK: Single city found:", locations[0]);
         return {
-          acao: "CONSULTAR_PREVISAO_DIRETA" as const,
-          cep_extraido: undefined,
-          cidade_extraida: nomeCidade,
-          justificativa: "Cidade única identificada e validada",
-          mensagem_amigavel: `Vou buscar a previsão do tempo para ${nomeCidade}! 😊`,
-          cidades_encontradas: undefined,
+          action: ACTIONS.CONSULT_WEATHER_DIRECT,
+          extractedZipCode: undefined,
+          extractedCity: cityName,
+          justification: "Single city identified and validated",
+          friendlyMessage: `Vou buscar a previsão do tempo para ${cityName}! 😊`,
+          foundCities: undefined,
         };
       } else {
-        console.log("🔧 FALLBACK: Múltiplas cidades encontradas:", localidades);
+        console.log("🔧 FALLBACK: Multiple cities found:", locations);
         return {
-          acao: "MULTIPLAS_CIDADES" as const,
-          cep_extraido: undefined,
-          cidade_extraida: nomeCidade,
-          justificativa: "Múltiplas cidades encontradas com o mesmo nome",
-          mensagem_amigavel: `Encontrei várias cidades com o nome "${nomeCidade}". Qual você quer? 😊`,
-          cidades_encontradas: localidades,
+          action: ACTIONS.MULTIPLE_CITIES,
+          extractedZipCode: undefined,
+          extractedCity: cityName,
+          justification: "Multiple cities found with the same name",
+          friendlyMessage: `Encontrei várias cidades com o nome "${cityName}". Qual você quer? 😊`,
+          foundCities: locations,
         };
       }
     } catch (error) {
-      console.log("🔧 FALLBACK: Erro ao validar cidade:", error);
-      // Se der erro na validação, assume que é uma cidade válida
+      console.log("🔧 FALLBACK: Error validating city:", error);
+      // If validation fails, assume it's a valid city
       return {
-        acao: "CONSULTAR_PREVISAO_DIRETA" as const,
-        cep_extraido: undefined,
-        cidade_extraida: nomeCidade,
-        justificativa: "Cidade identificada na entrada (validação falhou)",
-        mensagem_amigavel: `Vou buscar a previsão do tempo para ${nomeCidade}! 😊`,
-        cidades_encontradas: undefined,
+        action: ACTIONS.CONSULT_WEATHER_DIRECT,
+        extractedZipCode: undefined,
+        extractedCity: cityName,
+        justification: "City identified in input (validation failed)",
+        friendlyMessage: `Vou buscar a previsão do tempo para ${cityName}! 😊`,
+        foundCities: undefined,
       };
     }
   }
 
-  // 7. Se tem palavras de clima mas não tem cidade específica
-  if (temPalavrasClima && !pareceCidade && !cidadeExtraida) {
-    console.log(
-      "🔧 FALLBACK: Palavras de clima detectadas, solicitando cidade"
-    );
+  // 7. If has weather keywords but no specific city
+  if (hasWeatherKeywords && !looksLikeCity && !extractedCity) {
+    console.log("🔧 FALLBACK: Weather keywords detected, requesting city");
     return {
-      acao: "SOLICITAR_LOCAL" as const,
-      cep_extraido: undefined,
-      cidade_extraida: undefined,
-      justificativa: "Consulta de clima detectada, mas cidade não especificada",
-      mensagem_amigavel: "Previsão do tempo de qual CEP ou cidade? 😊",
-      cidades_encontradas: undefined,
+      action: ACTIONS.REQUEST_LOCATION,
+      extractedZipCode: undefined,
+      extractedCity: undefined,
+      justification: "Weather query detected, but city not specified",
+      friendlyMessage: "Previsão do tempo para qual CEP ou cidade? 😊",
+      foundCities: undefined,
     };
   }
 
-  // 8. Se tem palavras de CEP mas não tem CEP específico
-  if (temPalavrasCEP && !cepMatch) {
-    console.log("🔧 FALLBACK: Palavras de CEP detectadas, solicitando CEP");
+  // 8. If has ZIP code keywords but no specific ZIP code
+  if (hasZipCodeKeywords && !zipCodeMatch) {
+    console.log("🔧 FALLBACK: ZIP code keywords detected, requesting ZIP code");
     return {
-      acao: "SOLICITAR_CEP" as const,
-      cep_extraido: undefined,
-      cidade_extraida: undefined,
-      justificativa: "Consulta de endereço detectada, mas CEP não especificado",
-      mensagem_amigavel: "De qual CEP você gostaria de saber o endereço? 😊",
-      cidades_encontradas: undefined,
+      action: ACTIONS.REQUEST_ZIP_CODE,
+      extractedZipCode: undefined,
+      extractedCity: undefined,
+      justification: "Consulta de endereço detectada, mas CEP não especificado",
+      friendlyMessage: "Qual CEP você gostaria de consultar o endereço? 😊",
+      foundCities: undefined,
     };
   }
 
-  // 9. Se não conseguiu identificar nada específico
-  console.log("🔧 FALLBACK: Não foi possível identificar a intenção");
+  // 9. If couldn't identify anything specific
+  console.log("🔧 FALLBACK: Could not identify intention");
   return {
-    acao: "SOLICITAR_LOCAL" as const,
-    cep_extraido: undefined,
-    cidade_extraida: undefined,
-    justificativa: "Não foi possível identificar a intenção da consulta",
-    mensagem_amigavel:
+    action: ACTIONS.REQUEST_LOCATION,
+    extractedZipCode: undefined,
+    extractedCity: undefined,
+    justification: "Não foi possível identificar a intenção da consulta",
+    friendlyMessage:
       "Pode me dizer o que você gostaria de saber? CEP, endereço ou previsão do tempo? 😊",
-    cidades_encontradas: undefined,
+    foundCities: undefined,
   };
 };

@@ -7,36 +7,29 @@
 import { createTool } from "@deco/workers-runtime/mastra";
 import { z } from "zod";
 import type { Env } from "../main.ts";
+import { TOOL_IDS } from "../../common/types/constants.ts";
 import { LocalidadeErrorManager, LocalidadeError } from "../error-manager.ts";
+import {
+  CitySearchInputSchema,
+  CitySearchOutputSchema,
+} from "../../common/schemas/index.ts";
 
 export const createCitySearchTool = (env: Env) =>
   createTool({
-    id: "BUSCAR_LOCALIDADE",
+    id: TOOL_IDS.CITY_SEARCH,
     description:
       "Busca localidades (cidades) através do nome usando a API CPTEC da Brasil API",
-    inputSchema: z.object({
-      nomeCidade: z
-        .string()
-        .min(2, "Nome da cidade deve ter pelo menos 2 caracteres"),
-    }),
-    outputSchema: z.object({
-      localidades: z.array(
-        z.object({
-          id: z.number(),
-          nome: z.string(),
-          estado: z.string(),
-        })
-      ),
-    }),
+    inputSchema: CitySearchInputSchema,
+    outputSchema: CitySearchOutputSchema,
     execute: async ({ context }) => {
-      const { nomeCidade } = context;
+      const { cityName } = context;
 
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
 
         const response = await fetch(
-          `https://brasilapi.com.br/api/cptec/v1/cidade/${encodeURIComponent(nomeCidade)}`,
+          `https://brasilapi.com.br/api/cptec/v1/cidade/${encodeURIComponent(cityName)}`,
           {
             method: "GET",
             headers: {
@@ -60,10 +53,10 @@ export const createCitySearchTool = (env: Env) =>
         const data = await response.json();
 
         return {
-          localidades: data.map((localidade: any) => ({
+          locations: data.map((localidade: any) => ({
             id: localidade.id,
-            nome: localidade.nome,
-            estado: localidade.estado,
+            name: localidade.nome,
+            state: localidade.estado,
           })),
         };
       } catch (error) {

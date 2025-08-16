@@ -1,16 +1,17 @@
 /**
  * AI Test Tool
- * 
+ *
  * Tests the connection with AI Gateway
  */
 
 import { createTool } from "@deco/workers-runtime/mastra";
 import { z } from "zod";
 import type { Env } from "../main.ts";
+import { TOOL_IDS } from "../../common/types/constants.ts";
 
 export const createAITestTool = (env: Env) =>
   createTool({
-    id: "TESTE_AI",
+    id: TOOL_IDS.AI_TEST,
     description: "Testa a conexão com a IA Gateway",
     inputSchema: z.object({
       mensagem: z.string().default("Teste de conexão"),
@@ -33,31 +34,36 @@ export const createAITestTool = (env: Env) =>
     }),
     execute: async ({ context }) => {
       try {
-        console.log("🧪 TESTE_AI: Iniciando teste de conexão...");
-        console.log("🧪 TESTE_AI: Mensagem:", context.mensagem);
+        console.log(`🧪 ${TOOL_IDS.AI_TEST}: Iniciando teste de conexão...`);
+        console.log(`🧪 ${TOOL_IDS.AI_TEST}: Mensagem:`, context.mensagem);
 
         // Teste 1: Verificar se env.DECO_CHAT_WORKSPACE_API existe
         if (!env.DECO_CHAT_WORKSPACE_API) {
           throw new Error("DECO_CHAT_WORKSPACE_API não está disponível");
         }
 
-        console.log("🧪 TESTE_AI: DECO_CHAT_WORKSPACE_API disponível");
+        console.log(
+          `🧪 ${TOOL_IDS.AI_TEST}: DECO_CHAT_WORKSPACE_API disponível`
+        );
 
         // Teste 2: Verificar se AI_GENERATE_OBJECT existe
         if (!env.DECO_CHAT_WORKSPACE_API.AI_GENERATE_OBJECT) {
           throw new Error("AI_GENERATE_OBJECT não está disponível");
         }
 
-        console.log("🧪 TESTE_AI: AI_GENERATE_OBJECT disponível");
+        console.log(`🧪 ${TOOL_IDS.AI_TEST}: AI_GENERATE_OBJECT disponível`);
 
         // Teste 3: Tentar diferentes tipos de chamada
-        console.log("🧪 TESTE_AI: Tipo de teste:", context.tipo_teste);
+        console.log(
+          `🧪 ${TOOL_IDS.AI_TEST}: Tipo de teste:`,
+          context.tipo_teste
+        );
 
         const startTime = Date.now();
         let aiResponse: any;
 
         if (context.tipo_teste === "AI_GENERATE_OBJECT") {
-          console.log("🧪 TESTE_AI: Testando AI_GENERATE_OBJECT...");
+          console.log(`🧪 ${TOOL_IDS.AI_TEST}: Testando AI_GENERATE_OBJECT...`);
           aiResponse = await env.DECO_CHAT_WORKSPACE_API.AI_GENERATE_OBJECT({
             model: "openai:gpt-4o-mini",
             messages: [
@@ -79,7 +85,7 @@ export const createAITestTool = (env: Env) =>
             },
           });
         } else if (context.tipo_teste === "PING") {
-          console.log("🧪 TESTE_AI: Testando PING...");
+          console.log(`🧪 ${TOOL_IDS.AI_TEST}: Testando PING...`);
           // Teste simples para verificar se a API está respondendo
           aiResponse = { status: "pong", message: "API respondendo" };
         }
@@ -87,8 +93,12 @@ export const createAITestTool = (env: Env) =>
         const endTime = Date.now();
         const duration = endTime - startTime;
 
-        console.log("✅ TESTE_AI: Conexão bem-sucedida em", duration, "ms");
-        console.log("✅ TESTE_AI: Resposta recebida:", aiResponse);
+        console.log(
+          `✅ ${TOOL_IDS.AI_TEST}: Conexão bem-sucedida em`,
+          duration,
+          "ms"
+        );
+        console.log(`✅ ${TOOL_IDS.AI_TEST}: Resposta recebida:`, aiResponse);
 
         return {
           sucesso: true,
@@ -103,10 +113,13 @@ export const createAITestTool = (env: Env) =>
           },
         };
       } catch (error: any) {
-        console.error("❌ TESTE_AI: Erro detalhado:", error);
-        console.error("❌ TESTE_AI: Tipo do erro:", typeof error);
-        console.error("❌ TESTE_AI: Stack trace:", error.stack);
-        console.error("❌ TESTE_AI: Propriedades:", Object.keys(error));
+        console.error(`❌ ${TOOL_IDS.AI_TEST}: Erro detalhado:`, error);
+        console.error(`❌ ${TOOL_IDS.AI_TEST}: Tipo do erro:`, typeof error);
+        console.error(`❌ ${TOOL_IDS.AI_TEST}: Stack trace:`, error.stack);
+        console.error(
+          `❌ ${TOOL_IDS.AI_TEST}: Propriedades:`,
+          Object.keys(error)
+        );
 
         return {
           sucesso: false,

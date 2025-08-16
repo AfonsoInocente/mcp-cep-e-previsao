@@ -8,152 +8,146 @@ import { createTool } from "@deco/workers-runtime/mastra";
 import { z } from "zod";
 import type { Env } from "../main.ts";
 import { manualAnalysisFallback } from "./fallback-analysis.ts";
+import {
+  ACTIONS,
+  QUERY_TYPES,
+  TOOL_IDS,
+} from "../../common/types/constants.ts";
+import {
+  IntelligentWorkflowInputSchema,
+  IntelligentDecisorOutputSchema,
+} from "../../common/schemas/zipcode-weather.ts";
 
 export const createIntelligentDecisorTool = (env: Env) =>
   createTool({
-    id: "DECISOR_INTELIGENTE",
+    id: TOOL_IDS.INTELLIGENT_DECISOR,
     description:
-      "Analisa a entrada do usuário e decide se deve consultar apenas CEP ou fazer o fluxo completo com previsão do tempo",
-    inputSchema: z.object({
-      entrada_usuario: z.string().min(1, "Entrada do usuário é obrigatória"),
-    }),
-    outputSchema: z.object({
-      acao: z.enum([
-        "CONSULTAR_CEP",
-        "CONSULTAR_CEP_E_PREVISAO",
-        "CONSULTAR_PREVISAO_DIRETA",
-        "CONSULTA_FORA_ESCOPO",
-        "SOLICITAR_CEP",
-        "SOLICITAR_LOCAL",
-        "MULTIPLAS_CIDADES",
-        "CIDADE_NAO_ENCONTRADA",
-      ]),
-      cep_extraido: z.string().optional(),
-      cidade_extraida: z.string().optional(),
-      justificativa: z.string(),
-      mensagem_amigavel: z.string(),
-      cidades_encontradas: z.array(z.any()).optional(),
-    }),
+      "Analisa a entrada do usuário e decide se deve consultar apenas o CEP ou executar o fluxo completo com previsão do tempo",
+    inputSchema: IntelligentWorkflowInputSchema,
+    outputSchema: IntelligentDecisorOutputSchema,
     execute: async ({ context }) => {
-      const { entrada_usuario } = context;
+      const { userInput } = context;
 
       console.log(
-        `DECISOR_INTELIGENTE: Analisando entrada: "${entrada_usuario}"`
+        `${TOOL_IDS.INTELLIGENT_DECISOR}: Analyzing input: "${userInput}"`
       );
 
-      // Schema para a decisão da IA
+      // Schema for AI decision
       const DECISION_SCHEMA = {
         type: "object",
         properties: {
-          acao: {
+          action: {
             type: "string",
             enum: [
-              "CONSULTAR_CEP",
-              "CONSULTAR_CEP_E_PREVISAO",
-              "CONSULTAR_PREVISAO_DIRETA",
+              ACTIONS.CONSULT_ZIP_CODE,
+              ACTIONS.CONSULT_ZIP_CODE_AND_WEATHER,
+              ACTIONS.CONSULT_WEATHER_DIRECT,
             ],
             description:
-              "Ação a ser executada: CONSULTAR_CEP para apenas consultar CEP, CONSULTAR_CEP_E_PREVISAO para consultar CEP e previsão do tempo, CONSULTAR_PREVISAO_DIRETA para consultar previsão diretamente por cidade",
+              "Ação a ser executada: CONSULT_ZIP_CODE para consultar apenas CEP, CONSULT_ZIP_CODE_AND_WEATHER para consultar CEP e previsão do tempo, CONSULT_WEATHER_DIRECT para consultar previsão diretamente por cidade",
           },
-          cep_extraido: {
+          extractedZipCode: {
             type: "string",
             description:
               "CEP extraído da entrada do usuário (formato: 00000000, sem hífen)",
           },
-          cidade_extraida: {
+          extractedCity: {
             type: "string",
             description:
               "Cidade extraída da entrada do usuário (se mencionada, sem acentos desnecessários)",
           },
-          justificativa: {
+          justification: {
             type: "string",
             description: "Justificativa técnica para a decisão tomada",
           },
-          mensagem_amigavel: {
+          friendlyMessage: {
             type: "string",
             description:
               "Mensagem amigável para o usuário explicando o que será feito",
           },
-          precisa_cep: {
+          needsZipCode: {
             type: "boolean",
             description:
               "Se a consulta precisa de um CEP válido para funcionar",
           },
-          pode_fallback: {
+          canFallback: {
             type: "boolean",
             description:
               "Se pode usar fallback quando CEP/cidade não for encontrado",
           },
         },
         required: [
-          "acao",
-          "justificativa",
-          "mensagem_amigavel",
-          "precisa_cep",
-          "pode_fallback",
+          "action",
+          "justification",
+          "friendlyMessage",
+          "needsZipCode",
+          "canFallback",
         ],
       };
 
       try {
         let prompt =
           "Analise a seguinte entrada do usuário e decida qual ação tomar:\n\n";
-        prompt += `ENTRADA DO USUÁRIO: "${entrada_usuario}"\n\n`;
-        prompt += "POSSÍVEIS AÇÕES:\n";
+        prompt += `ENTRADA DO USUÁRIO: "${userInput}"\n\n`;
+        prompt += "AÇÕES POSSÍVEIS:\n";
         prompt +=
-          "1. CONSULTAR_CEP: Quando o usuário quer apenas informações de endereço (CEP, rua, bairro, cidade, estado)\n";
+          "1. CONSULT_ZIP_CODE: Quando o usuário quer apenas informações de endereço (CEP, rua, bairro, cidade, estado)\n";
         prompt +=
-          "2. CONSULTAR_CEP_E_PREVISAO: Quando o usuário quer informações de endereço E previsão do tempo\n\n";
-        prompt += "CRITÉRIOS PARA DECISÃO:\n";
+          "2. CONSULT_ZIP_CODE_AND_WEATHER: Quando o usuário quer informações de endereço E previsão do tempo\n";
         prompt +=
-          "- Se a entrada contém apenas CEP ou endereço → CONSULTAR_CEP\n";
+          "3. CONSULT_WEATHER_DIRECT: Quando o usuário quer previsão do tempo diretamente por cidade\n\n";
+        prompt += "CRITÉRIOS DE DECISÃO:\n";
         prompt +=
-          '- Se a entrada menciona "clima", "tempo", "previsão", "temperatura", "chuva", "sol" E tem CEP → CONSULTAR_CEP_E_PREVISAO\n';
+          "- Se a entrada contém apenas CEP ou endereço → CONSULT_ZIP_CODE\n";
         prompt +=
-          "- Se a entrada pergunta sobre condições meteorológicas E tem CEP → CONSULTAR_CEP_E_PREVISAO\n";
+          '- Se a entrada menciona "tempo", "clima", "previsão", "temperatura", "chuva", "sol" E tem CEP → CONSULT_ZIP_CODE_AND_WEATHER\n';
         prompt +=
-          "- Se a entrada é sobre localização/endereço apenas → CONSULTAR_CEP\n";
+          "- Se a entrada pergunta sobre condições climáticas E tem CEP → CONSULT_ZIP_CODE_AND_WEATHER\n";
         prompt +=
-          "- Se a entrada tem CEP E qualquer menção a clima/tempo → CONSULTAR_CEP_E_PREVISAO\n\n";
+          "- Se a entrada é apenas sobre localização/endereço → CONSULT_ZIP_CODE\n";
+        prompt +=
+          "- Se a entrada tem CEP E qualquer menção de tempo/clima → CONSULT_ZIP_CODE_AND_WEATHER\n";
+        prompt +=
+          "- Se a entrada menciona apenas cidade para previsão do tempo → CONSULT_WEATHER_DIRECT\n\n";
         prompt += "EXEMPLOS:\n";
-        prompt += '- "CEP 01310-100" → CONSULTAR_CEP\n';
+        prompt += '- "CEP 01310-100" → CONSULT_ZIP_CODE\n';
         prompt +=
-          '- "Quero saber o endereço do CEP 01310-100" → CONSULTAR_CEP\n';
+          '- "Quero saber o endereço do CEP 01310-100" → CONSULT_ZIP_CODE\n';
         prompt +=
-          '- "Como está o clima no CEP 01310-100?" → CONSULTAR_CEP_E_PREVISAO\n';
+          '- "Como está o tempo no CEP 01310-100?" → CONSULT_ZIP_CODE_AND_WEATHER\n';
         prompt +=
-          '- "Previsão do tempo para 01310-100" → CONSULTAR_CEP_E_PREVISAO\n';
+          '- "Previsão do tempo para 01310-100" → CONSULT_ZIP_CODE_AND_WEATHER\n';
         prompt +=
-          '- "CEP 01310-100 com previsão do tempo" → CONSULTAR_CEP_E_PREVISAO\n';
+          '- "CEP 01310-100 com previsão do tempo" → CONSULT_ZIP_CODE_AND_WEATHER\n';
         prompt +=
-          '- "Quero o endereço e clima do CEP 20040-007" → CONSULTAR_CEP_E_PREVISAO\n';
+          '- "Quero o endereço e o tempo para o CEP 20040-007" → CONSULT_ZIP_CODE_AND_WEATHER\n';
         prompt +=
-          '- "Como está o clima em São Paulo?" → CONSULTAR_PREVISAO_DIRETA\n';
-        prompt += '- "Temperatura em São Paulo" → CONSULTAR_PREVISAO_DIRETA\n';
+          '- "Como está o tempo em São Paulo?" → CONSULT_WEATHER_DIRECT\n';
+        prompt += '- "Temperatura em São Paulo" → CONSULT_WEATHER_DIRECT\n';
         prompt +=
-          '- "Previsão do tempo para São Paulo" → CONSULTAR_PREVISAO_DIRETA\n';
-        prompt +=
-          '- "Qual é a melhor marca de carro?" → CONSULTA_FORA_ESCOPO\n';
-        prompt += '- "Como fazer bolo?" → CONSULTA_FORA_ESCOPO\n';
-        prompt += '- "História do Brasil" → CONSULTA_FORA_ESCOPO\n';
-        prompt += '- "Quero saber o endereço" → SOLICITAR_CEP\n';
-        prompt += '- "Previsão do tempo" → SOLICITAR_LOCAL\n';
-        prompt += '- "São Paulo" → CONSULTAR_PREVISAO_DIRETA\n';
-        prompt += '- "Rio de Janeiro" → CONSULTAR_PREVISAO_DIRETA\n';
-        prompt += '- "Belo Horizonte" → CONSULTAR_PREVISAO_DIRETA\n\n';
+          '- "Previsão do tempo para São Paulo" → CONSULT_WEATHER_DIRECT\n';
+        prompt += '- "Qual é a melhor marca de carro?" → OUT_OF_SCOPE\n';
+        prompt += '- "Como fazer um bolo?" → OUT_OF_SCOPE\n';
+        prompt += '- "História do Brasil" → OUT_OF_SCOPE\n';
+        prompt += '- "Quero saber o endereço" → REQUEST_ZIP_CODE\n';
+        prompt += '- "Previsão do tempo" → REQUEST_LOCATION\n';
+        prompt += '- "São Paulo" → CONSULT_WEATHER_DIRECT\n';
+        prompt += '- "Rio de Janeiro" → CONSULT_WEATHER_DIRECT\n';
+        prompt += '- "Belo Horizonte" → CONSULT_WEATHER_DIRECT\n\n';
         prompt += "TAREFAS:\n";
         prompt +=
           "1. Identifique se há um CEP na entrada (formato: 00000-000 ou 00000000)\n";
-        prompt += "2. Identifique se há menção a cidade/localidade\n";
+        prompt += "2. Identifique se há menção de cidade/localização\n";
         prompt +=
-          "3. Determine a intenção do usuário (endereço apenas ou endereço + clima)\n";
+          "3. Determine a intenção do usuário (apenas endereço ou endereço + tempo)\n";
         prompt += "4. Extraia o CEP se presente\n";
         prompt += "5. Extraia a cidade se mencionada\n";
-        prompt += "6. Forneça uma justificativa clara\n";
+        prompt += "6. Forneça justificativa clara\n";
         prompt +=
           "7. Crie uma mensagem amigável explicando o que será feito\n\n";
         prompt += "Seja preciso e amigável na análise.";
 
-        console.log("DECISOR_INTELIGENTE: Enviando para análise da IA");
+        console.log(`${TOOL_IDS.INTELLIGENT_DECISOR}: Sending for AI analysis`);
 
         const aiResponse = await env.DECO_CHAT_WORKSPACE_API.AI_GENERATE_OBJECT(
           {
@@ -162,7 +156,7 @@ export const createIntelligentDecisorTool = (env: Env) =>
               {
                 role: "system",
                 content:
-                  "Você é um assistente especializado em análise de intenções do usuário para consultas de CEP e previsão do tempo. Seja preciso e amigável.",
+                  "Você é um assistente especializado em analisar intenções do usuário para consultas de CEP e previsão do tempo. Seja preciso e amigável.",
               },
               {
                 role: "user",
@@ -175,170 +169,180 @@ export const createIntelligentDecisorTool = (env: Env) =>
         );
 
         console.log(
-          "DECISOR_INTELIGENTE: Decisão recebida:",
+          `${TOOL_IDS.INTELLIGENT_DECISOR}: Decision received:`,
           aiResponse.object
         );
 
         if (!aiResponse.object) {
-          throw new Error("Falha ao analisar entrada do usuário");
+          throw new Error("Falha ao analisar a entrada do usuário");
         }
 
         return aiResponse.object as {
-          acao: "CONSULTAR_CEP" | "CONSULTAR_CEP_E_PREVISAO";
-          cep_extraido?: string;
-          cidade_extraida?: string;
-          justificativa: string;
-          mensagem_amigavel: string;
+          action: (typeof ACTIONS)[keyof typeof ACTIONS];
+          extractedZipCode?: string;
+          extractedCity?: string;
+          justification: string;
+          friendlyMessage: string;
         };
       } catch (error) {
-        console.log("DECISOR_INTELIGENTE: Erro na análise:", error);
+        console.log(
+          `${TOOL_IDS.INTELLIGENT_DECISOR}: Error in analysis:`,
+          error
+        );
 
-        // Fallback inteligente usando IA para análise da entrada
-        console.log("🤖 Usando IA para análise inteligente da entrada...");
+        // Intelligent fallback using AI for input analysis
+        console.log("🤖 Using AI for intelligent input analysis...");
 
-        const ANALISE_ENTRADA_SCHEMA = {
+        const INPUT_ANALYSIS_SCHEMA = {
           type: "object",
           properties: {
-            tipo_consulta: {
+            queryType: {
               type: "string",
-              enum: ["CEP", "PREVISAO", "CEP_E_PREVISAO", "FORA_ESCOPO"],
+              enum: [
+                QUERY_TYPES.ZIP_CODE,
+                QUERY_TYPES.FORECAST,
+                QUERY_TYPES.ZIP_CODE_AND_FORECAST,
+                QUERY_TYPES.OUT_OF_SCOPE,
+              ],
               description: "Tipo de consulta identificada",
             },
-            cep_identificado: {
+            identifiedZipCode: {
               type: "string",
               description: "CEP extraído da entrada (se houver)",
             },
-            cidade_identificada: {
+            identifiedCity: {
               type: "string",
               description: "Cidade extraída da entrada (se houver)",
             },
-            acao_recomendada: {
+            recommendedAction: {
               type: "string",
               enum: [
-                "CONSULTAR_CEP",
-                "CONSULTAR_PREVISAO_DIRETA",
-                "CONSULTAR_CEP_E_PREVISAO",
-                "SOLICITAR_CEP",
-                "SOLICITAR_LOCAL",
-                "CONSULTA_FORA_ESCOPO",
+                ACTIONS.CONSULT_ZIP_CODE,
+                ACTIONS.CONSULT_WEATHER_DIRECT,
+                ACTIONS.CONSULT_ZIP_CODE_AND_WEATHER,
+                ACTIONS.REQUEST_ZIP_CODE,
+                ACTIONS.REQUEST_LOCATION,
+                ACTIONS.OUT_OF_SCOPE,
               ],
               description: "Ação recomendada baseada na análise",
             },
-            justificativa: {
+            justification: {
               type: "string",
               description: "Justificativa da análise",
             },
-            mensagem_amigavel: {
+            friendlyMessage: {
               type: "string",
               description: "Mensagem amigável para o usuário",
             },
           },
           required: [
-            "tipo_consulta",
-            "acao_recomendada",
-            "justificativa",
-            "mensagem_amigavel",
+            "queryType",
+            "recommendedAction",
+            "justification",
+            "friendlyMessage",
           ],
         };
 
-        const promptAnalise = `Analise a seguinte entrada do usuário e identifique:
+        const analysisPrompt = `Analise a seguinte entrada do usuário e identifique:
 
-ENTRADA: "${entrada_usuario}"
+ENTRADA: "${userInput}"
 
 TAREFAS:
 1. Identifique se há um CEP (formato: 00000-000 ou 00000000)
-2. Identifique se há menção a uma cidade/localidade
-3. Determine se é consulta de:
+2. Identifique se há menção de uma cidade/localização
+3. Determine se é uma consulta para:
    - Apenas CEP (endereço)
    - Apenas previsão do tempo
    - CEP + previsão do tempo
-   - Fora do escopo (não relacionado a CEP ou clima)
+   - Fora do escopo (não relacionado a CEP ou tempo)
 
 EXEMPLOS:
-- "01310-100" → CONSULTAR_CEP
-- "São Paulo" → CONSULTAR_PREVISAO_DIRETA
-- "Rio de Janeiro" → CONSULTAR_PREVISAO_DIRETA
-- "Como está o clima em São Paulo?" → CONSULTAR_PREVISAO_DIRETA
-- "CEP 01310-100" → CONSULTAR_CEP
-- "Previsão do tempo para 01310-100" → CONSULTAR_CEP_E_PREVISAO
-- "Quero saber o endereço" → SOLICITAR_CEP
-- "Previsão do tempo" → SOLICITAR_LOCAL
-- "Qual a melhor marca de carro?" → CONSULTA_FORA_ESCOPO
+- "01310-100" → CONSULT_ZIP_CODE
+- "São Paulo" → CONSULT_WEATHER_DIRECT
+- "Rio de Janeiro" → CONSULT_WEATHER_DIRECT
+- "Como está o tempo em São Paulo?" → CONSULT_WEATHER_DIRECT
+- "CEP 01310-100" → CONSULT_ZIP_CODE
+- "Previsão do tempo para 01310-100" → CONSULT_ZIP_CODE_AND_WEATHER
+- "Quero saber o endereço" → REQUEST_ZIP_CODE
+- "Previsão do tempo" → REQUEST_LOCATION
+- "Qual é a melhor marca de carro?" → OUT_OF_SCOPE
 
 Seja preciso e amigável na análise.`;
 
         try {
-          console.log("🤖 DECISOR_INTELIGENTE: Chamando IA para análise...");
-          const analiseIA =
+          console.log(
+            `🤖 ${TOOL_IDS.INTELLIGENT_DECISOR}: Calling AI for analysis...`
+          );
+          const aiAnalysis =
             await env.DECO_CHAT_WORKSPACE_API.AI_GENERATE_OBJECT({
               model: "openai:gpt-4o-mini",
               messages: [
                 {
                   role: "system",
                   content:
-                    "Você é um assistente especializado em análise de consultas de CEP e previsão do tempo. Seja preciso e amigável.",
+                    "Você é um assistente especializado em analisar consultas de CEP e previsão do tempo. Seja preciso e amigável.",
                 },
                 {
                   role: "user",
-                  content: promptAnalise,
+                  content: analysisPrompt,
                 },
               ],
               temperature: 0.1,
-              schema: ANALISE_ENTRADA_SCHEMA,
+              schema: INPUT_ANALYSIS_SCHEMA,
             });
 
-          if (analiseIA.object) {
-            console.log("✅ Análise IA recebida:", analiseIA.object);
+          if (aiAnalysis.object) {
+            console.log("✅ AI analysis received:", aiAnalysis.object);
 
-            // Verificar se a IA extraiu dados que fazem sentido
-            const cidadeIA = analiseIA.object.cidade_identificada;
-            const cepIA = analiseIA.object.cep_identificado;
+            // Check if AI extracted data that makes sense
+            const aiCity = aiAnalysis.object.identifiedCity;
+            const aiZipCode = aiAnalysis.object.identifiedZipCode;
 
-            // Se a IA extraiu uma cidade que contém palavras-chave (como "previsão"), usar fallback
+            // If AI extracted a city that contains keywords (like "forecast"), use fallback
             console.log(
-              "🔍 DECISOR_INTELIGENTE: Validando cidade extraída pela IA:",
-              cidadeIA
+              `🔍 ${TOOL_IDS.INTELLIGENT_DECISOR}: Validating city extracted by AI:`,
+              aiCity
             );
             if (
-              cidadeIA &&
-              typeof cidadeIA === "string" &&
-              (cidadeIA.toLowerCase().includes("previsão") ||
-                cidadeIA.toLowerCase().includes("previsao") ||
-                cidadeIA.toLowerCase().includes("clima") ||
-                cidadeIA.toLowerCase().includes("tempo") ||
-                cidadeIA.toLowerCase().includes("em") ||
-                cidadeIA.toLowerCase().includes("para") ||
-                cidadeIA.toLowerCase().includes("de"))
+              aiCity &&
+              typeof aiCity === "string" &&
+              (aiCity.toLowerCase().includes("forecast") ||
+                aiCity.toLowerCase().includes("weather") ||
+                aiCity.toLowerCase().includes("climate") ||
+                aiCity.toLowerCase().includes("temperature") ||
+                aiCity.toLowerCase().includes("in") ||
+                aiCity.toLowerCase().includes("for") ||
+                aiCity.toLowerCase().includes("of"))
             ) {
               console.log(
-                "⚠️ IA extraiu cidade inválida:",
-                cidadeIA,
-                "- usando fallback manual"
+                "⚠️ AI extracted invalid city:",
+                aiCity,
+                "- using manual fallback"
               );
-              return await manualAnalysisFallback(entrada_usuario, env);
+              return await manualAnalysisFallback(userInput, env);
             } else {
-              console.log("✅ IA extraiu cidade válida:", cidadeIA);
+              console.log("✅ AI extracted valid city:", aiCity);
             }
 
             return {
-              acao: analiseIA.object.acao_recomendada as any,
-              cep_extraido: cepIA as string | undefined,
-              cidade_extraida: cidadeIA as string | undefined,
-              justificativa: analiseIA.object.justificativa as string,
-              mensagem_amigavel: analiseIA.object.mensagem_amigavel as string,
-              cidades_encontradas: undefined,
+              action: aiAnalysis.object.recommendedAction as any,
+              extractedZipCode: aiZipCode as string | undefined,
+              extractedCity: aiCity as string | undefined,
+              justification: aiAnalysis.object.justification as string,
+              friendlyMessage: aiAnalysis.object.friendlyMessage as string,
+              foundCities: undefined,
             };
           } else {
             console.log(
-              "⚠️ Análise IA não retornou objeto válido, usando fallback manual"
+              "⚠️ AI analysis did not return valid object, using manual fallback"
             );
-            return await manualAnalysisFallback(entrada_usuario, env);
+            return await manualAnalysisFallback(userInput, env);
           }
         } catch (error) {
-          console.log("⚠️ Erro na análise IA, usando fallback manual:", error);
+          console.log("⚠️ Error in AI analysis, using manual fallback:", error);
 
-          // Fallback inteligente manual
-          return await manualAnalysisFallback(entrada_usuario, env);
+          // Intelligent manual fallback
+          return await manualAnalysisFallback(userInput, env);
         }
       }
     },

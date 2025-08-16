@@ -1,48 +1,34 @@
 /**
  * Weather Forecast Tool
- * 
+ *
  * Consults weather forecast for a city using CPTEC API from Brasil API
  */
 
 import { createTool } from "@deco/workers-runtime/mastra";
-import { z } from "zod";
 import type { Env } from "../main.ts";
+import { TOOL_IDS } from "../../common/types/constants.ts";
 import { PrevisaoErrorManager, PrevisaoError } from "../error-manager.ts";
+import {
+  WeatherForecastInputSchema,
+  WeatherForecastOutputSchema,
+} from "../../common/schemas/zipcode-weather.ts";
 
 export const createWeatherForecastTool = (env: Env) =>
   createTool({
-    id: "PREVISAO_TEMPO",
+    id: TOOL_IDS.WEATHER_FORECAST,
     description:
       "Consulta previsão do tempo para uma cidade usando a API CPTEC da Brasil API",
-    inputSchema: z.object({
-      codigoCidade: z
-        .number()
-        .min(1, "Código da cidade deve ser um número positivo"),
-    }),
-    outputSchema: z.object({
-      cidade: z.string(),
-      estado: z.string(),
-      atualizado_em: z.string(),
-      clima: z.array(
-        z.object({
-          data: z.string(),
-          condicao: z.string(),
-          condicao_desc: z.string(),
-          min: z.number(),
-          max: z.number(),
-          indice_uv: z.number(),
-        })
-      ),
-    }),
+    inputSchema: WeatherForecastInputSchema,
+    outputSchema: WeatherForecastOutputSchema,
     execute: async ({ context }) => {
-      const { codigoCidade } = context;
+      const { cityCode } = context;
 
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
 
         const response = await fetch(
-          `https://brasilapi.com.br/api/cptec/v1/clima/previsao/${codigoCidade}`,
+          `https://brasilapi.com.br/api/cptec/v1/clima/previsao/${cityCode}`,
           {
             method: "GET",
             headers: {
@@ -74,16 +60,17 @@ export const createWeatherForecastTool = (env: Env) =>
         const data = await response.json();
 
         return {
-          cidade: data.cidade,
-          estado: data.estado,
-          atualizado_em: data.atualizado_em,
-          clima: data.clima.map((item: any) => ({
-            data: item.data,
-            condicao: item.condicao,
-            condicao_desc: item.condicao_desc,
-            min: item.min,
-            max: item.max,
-            indice_uv: item.indice_uv,
+          city: data.cidade, // convert from Portuguese to English
+          state: data.estado, // convert from Portuguese to English
+          updatedAt: data.atualizado_em, // convert from Portuguese to English
+          weather: data.clima.map((item: any) => ({
+            // convert from Portuguese to English
+            date: item.data, // convert from Portuguese to English
+            condition: item.condition,
+            conditionDescription: item.condicao_desc, // convert from Portuguese to English
+            minimum: item.min, // convert from Portuguese to English
+            maximum: item.max, // convert from Portuguese to English
+            uvIndex: item.indice_uv, // convert from Portuguese to English
           })),
         };
       } catch (error) {
