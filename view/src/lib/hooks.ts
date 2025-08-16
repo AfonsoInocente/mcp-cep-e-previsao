@@ -7,7 +7,14 @@ import {
   ACTIONS,
   TOOL_IDS,
 } from "../../../common/types";
-import { WEATHER_KEYWORDS, NON_CITY_WORDS } from "../../../common/consts";
+import { WEATHER_KEYWORDS, NON_CITY_WORDS, ZIPCODE_KEYWORDS } from "../../../common/consts";
+import {
+  isValidCityName,
+  extractPossibleCityNames,
+  extractBestCityName,
+  hasWeatherKeyword,
+  extractZipCode,
+} from "../../../common/utils";
 import type {
   ZipCodeResponse,
   CitySearchResponse,
@@ -79,74 +86,45 @@ const handleApiError = (error: any): string => {
 /**
  * Utility functions for data processing
  */
-const extractZipCode = (input: string): string | null => {
-  // Padrões mais abrangentes para extrair CEP
-  const zipCodePatterns = [
-    // CEP com hífen
-    /\d{5}-\d{3}/,
-    // CEP sem hífen
-    /\d{8}/,
-    // CEP com espaços ou outros separadores
-    /\d{5}[-\s]?\d{3}/,
-  ];
-
-  for (const pattern of zipCodePatterns) {
-    const match = input.match(pattern);
-    if (match) {
-      // Remove todos os caracteres não numéricos
-      return match[0].replace(/\D/g, "");
-    }
-  }
-
-  return null;
-};
 
 const extractCity = (input: string): string | null => {
-  // Usa a constante importada de weatherKeywords
-
-  // Padrões mais abrangentes para extrair cidade
-  const cityPatterns = [
-    // Padrões com palavras intermediárias
-    new RegExp(
-      `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+(?:em|para|de)\\s+)([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
-      "i"
-    ),
-    /(?:em|para|de)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-
-    // Padrões diretos (sem palavras intermediárias)
-    new RegExp(
-      `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+)([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
-      "i"
-    ),
-    new RegExp(
-      `(?:${WEATHER_KEYWORDS.join("|")})\\s+)([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
-      "i"
-    ),
-  ];
-
-  for (const pattern of cityPatterns) {
-    const match = input.match(pattern);
-    if (match && match[1]) {
-      const city = match[1].trim();
-      // Verifica se a cidade extraída faz sentido (não contém palavras que não são cidades)
-      const cityWords = city.toLowerCase().split(/\s+/);
-      const hasNonCityWords = cityWords.some((word) =>
-        (NON_CITY_WORDS as readonly string[]).includes(word)
-      );
-
-      if (!hasNonCityWords && city.length > 2) {
-        return city;
-      }
-    }
+  // Use the improved function that filters out CEP keywords
+  const city = extractBestCityName(input);
+  if (city) {
+    console.log("🔍 City extracted using improved function:", city);
+    return city;
   }
 
   // Fallback: extrai a última palavra que parece ser uma cidade
   const words = input.split(/\s+/);
-  const possibleCities = words.filter(
-    (word) => word.length > 2 && /^[A-Za-zÀ-ÿ]+$/.test(word)
+  const filteredCities = words.filter(
+    (word) =>
+      word.length > 2 && /^[A-Za-zÀ-ÿ]+$/.test(word) && isValidCityName(word)
   );
-  return possibleCities.length > 0
-    ? possibleCities[possibleCities.length - 1]
+
+  // If no valid city found, try to extract from common patterns
+  if (filteredCities.length === 0) {
+    // Check for patterns like "previsao ibitinga", "tempo em sao paulo", etc.
+    const cityPatterns = [
+      /(?:previsao|previsão|tempo|clima)\s+(?:em|para|de|do|da)\s+([A-Za-zÀ-ÿ\s]+)/i,
+      /(?:previsao|previsão|tempo|clima)\s+([A-Za-zÀ-ÿ\s]+)/i,
+      /(?:em|para|de|do|da)\s+([A-Za-zÀ-ÿ\s]+)/i,
+    ];
+
+    for (const pattern of cityPatterns) {
+      const match = input.match(pattern);
+      if (match && match[1]) {
+        const extractedCity = match[1].trim();
+        if (isValidCityName(extractedCity)) {
+          console.log("🔍 City extracted using pattern:", extractedCity);
+          return extractedCity;
+        }
+      }
+    }
+  }
+
+  return filteredCities.length > 0
+    ? filteredCities[filteredCities.length - 1]
     : null;
 };
 
@@ -322,6 +300,13 @@ export const useIntelligentSystem = () => {
         );
 
         // 1. Get intelligent decision
+        console.log(
+          "🔍 Analyzing input for weather keywords:",
+          userInput.userInput
+        );
+        const hasWeather = hasWeatherKeyword(userInput.userInput);
+        console.log("🔍 Has weather keywords:", hasWeather);
+
         const decision = await apiService.getIntelligentDecision(
           userInput.userInput
         );

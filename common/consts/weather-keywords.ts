@@ -11,8 +11,12 @@ export const WEATHER_KEYWORDS = [
   "previsoes",
   "prever",
   "previsto",
+  "previsivel",
+  "previsível",
   // Tempo
   "tempo",
+  "temperatura",
+  "temperaturas",
   // Clima
   "clima",
   "climatico",
@@ -20,38 +24,54 @@ export const WEATHER_KEYWORDS = [
   "climatica",
   "climática",
   // Temperatura
-  "temperatura",
-  "temperaturas",
   "quente",
   "frio",
   "fria",
+  "calor",
+  "fresco",
+  "fresca",
+  "gelado",
+  "gelada",
   // Chuva
   "chuva",
   "chuvoso",
   "chuvosa",
   "chover",
   "chovendo",
+  "chuvisco",
+  "temporal",
+  "tempestade",
   // Sol
   "sol",
   "ensolarado",
   "ensolarada",
   "solar",
+  "luminoso",
+  "luminosa",
   // Nublado
   "nublado",
   "nublada",
   "nuvem",
   "nuvens",
+  "nebuloso",
+  "nebulosa",
+  "escuro",
+  "escura",
   // Vento
   "vento",
   "ventoso",
   "ventosa",
   "ventando",
+  "brisa",
+  "rajada",
   // Umidade
   "umidade",
   "umido",
   "úmido",
   "umida",
   "úmida",
+  "seco",
+  "seca",
   // Pressão
   "pressao",
   "pressão",
@@ -63,6 +83,12 @@ export const WEATHER_KEYWORDS = [
   "meteorologica",
   "meteorológica",
   "meteorologia",
+  // Estações
+  "verao",
+  "verão",
+  "inverno",
+  "primavera",
+  "outono",
   // Inglês
   "forecast",
   "weather",
@@ -73,6 +99,19 @@ export const WEATHER_KEYWORDS = [
   "cloudy",
   "windy",
   "humid",
+  "dry",
+  "hot",
+  "cold",
+  "warm",
+  "cool",
+  "storm",
+  "stormy",
+  "foggy",
+  "misty",
+  "drizzle",
+  "shower",
+  "thunder",
+  "lightning",
 ] as const;
 
 /**
@@ -85,13 +124,86 @@ export const NON_CITY_WORDS = [
   // Palavras de contexto/gramática
   "como",
   "está",
+  "estao",
+  "estão",
   "para",
   "em",
-  "de",
-  "do",
-  "da",
-  "das",
-  "dos",
+  "cep",
+  "zip",
+  "postal",
+  "code",
+  "com",
+  "sem",
+  "por",
+  "pelo",
+  "pela",
+  "pelos",
+  "pelas",
+  "que",
+  "qual",
+  "quais",
+  "onde",
+  "quando",
+  "quanto",
+  "quantos",
+  "quantas",
+  "quem",
+  "cujo",
+  "cuja",
+  "cujos",
+  "cujas",
+  "este",
+  "esta",
+  "estes",
+  "estas",
+  "esse",
+  "essa",
+  "esses",
+  "essas",
+  "aquele",
+  "aquela",
+  "aqueles",
+  "aquelas",
+  "isto",
+  "isso",
+  "aquilo",
+  "meu",
+  "minha",
+  "meus",
+  "minhas",
+  "seu",
+  "sua",
+  "seus",
+  "suas",
+  "nosso",
+  "nossa",
+  "nossos",
+  "nossas",
+  "voso",
+  "vossa",
+  "vosos",
+  "vossas",
+  // Palavras de ação/verbo
+  "quer",
+  "quero",
+  "querer",
+  "preciso",
+  "precisa",
+  "precisar",
+  "gostaria",
+  "gostar",
+  "saber",
+  "conhecer",
+  "ver",
+  "mostrar",
+  "dizer",
+  "falar",
+  "explicar",
+  "ajudar",
+  "buscar",
+  "procurar",
+  "encontrar",
+  "achar",
   // Palavras em inglês que não são cidades
   "mass",
   "pizza",
@@ -107,35 +219,32 @@ export const NON_CITY_WORDS = [
   "store",
   "market",
   "restaurant",
+  "book",
+  "movie",
+  "music",
+  "game",
+  "phone",
+  "computer",
+  "laptop",
+  "tablet",
+  "tv",
+  "television",
+  "radio",
+  "newspaper",
+  "magazine",
+  "website",
+  "app",
+  "application",
+  "software",
+  "hardware",
+  "internet",
+  "wifi",
+  "bluetooth",
+  "email",
+  "message",
+  "text",
+  "call",
+  "phone",
+  "mobile",
+  "smartphone",
 ] as const;
-
-/**
- * Regex para detectar palavras-chave de clima/tempo
- */
-export const WEATHER_KEYWORDS_REGEX = new RegExp(
-  WEATHER_KEYWORDS.join("|"),
-  "i"
-);
-
-/**
- * Verifica se uma string contém palavras-chave de clima/tempo
- */
-export const hasWeatherKeyword = (input: string): boolean => {
-  return WEATHER_KEYWORDS_REGEX.test(input);
-};
-
-/**
- * Extrai palavras-chave de clima/tempo de uma string
- */
-export const extractWeatherKeywords = (input: string): string[] => {
-  const foundKeywords: string[] = [];
-  const lowerInput = input.toLowerCase();
-
-  for (const keyword of WEATHER_KEYWORDS) {
-    if (lowerInput.includes(keyword.toLowerCase())) {
-      foundKeywords.push(keyword);
-    }
-  }
-
-  return foundKeywords;
-};

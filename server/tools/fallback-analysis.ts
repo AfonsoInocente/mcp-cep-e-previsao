@@ -6,35 +6,48 @@
 
 import type { Env } from "../main.ts";
 import { ACTIONS } from "../../common/consts/constants.ts";
-import { WEATHER_KEYWORDS, NON_CITY_WORDS } from "../../common/consts";
+import {
+  WEATHER_KEYWORDS,
+  NON_CITY_WORDS,
+  ZIPCODE_KEYWORDS,
+} from "../../common/consts";
+import {
+  isValidCityName,
+  extractBestCityName,
+  hasWeatherKeyword,
+  extractZipCode,
+} from "../../common/utils";
 
 export const manualAnalysisFallback = async (userInput: string, env: Env) => {
   console.log("🔧 FALLBACK: Starting manual analysis for:", userInput);
 
-  // 1. Check if it's a direct ZIP code
-  const zipCodeMatch = userInput.match(/\d{5}-?\d{3}/);
-  if (zipCodeMatch) {
-    console.log("🔧 FALLBACK: ZIP code identified:", zipCodeMatch[0]);
+  // 1. Check if it's a direct ZIP code (simplified approach)
+  const extractedZipCode = extractZipCode(userInput);
+  if (extractedZipCode) {
+    console.log("🔧 FALLBACK: ZIP code identified:", extractedZipCode);
 
     // Check if there's mention of weather/climate/forecast
-    const hasWeather = /weather|climate|forecast|temperature|rain|sun/i.test(
+    console.log(
+      "🔧 FALLBACK: Checking weather keywords for ZIP code:",
       userInput
     );
+    const hasWeather = hasWeatherKeyword(userInput);
+    console.log("🔧 FALLBACK: Has weather keywords:", hasWeather);
 
     if (hasWeather) {
       console.log("🔧 FALLBACK: ZIP code + weather detected");
       return {
         action: ACTIONS.CONSULT_ZIP_CODE_AND_WEATHER,
-        extractedZipCode: zipCodeMatch[0].replace(/\D/g, ""),
+        extractedZipCode: extractedZipCode,
         extractedCity: undefined,
         justification: "CEP identificado com menção ao clima",
-        friendlyMessage: `Vou buscar o endereço e a previsão do tempo para o CEP ${zipCodeMatch[0]}! 😊`,
+        friendlyMessage: `Vou buscar o endereço e a previsão do tempo para o CEP ${extractedZipCode}! 😊`,
         foundCities: undefined,
       };
     } else {
       return {
         action: ACTIONS.CONSULT_ZIP_CODE,
-        extractedZipCode: zipCodeMatch[0].replace(/\D/g, ""),
+        extractedZipCode: extractedZipCode,
         extractedCity: undefined,
         justification: "CEP identificado na entrada",
         friendlyMessage: "Vou buscar as informações do endereço para você! 😊",
@@ -43,74 +56,85 @@ export const manualAnalysisFallback = async (userInput: string, env: Env) => {
     }
   }
 
-  // 2. Check weather/climate keywords (usando constante importada)
-
-  const weatherRegex = new RegExp(WEATHER_KEYWORDS.join("|"), "i");
-  const hasWeatherKeywords = weatherRegex.test(userInput);
+  // 2. Check weather/climate keywords (usando função utilitária)
+  console.log("🔧 FALLBACK: Checking weather keywords in:", userInput);
+  const hasWeatherKeywords = hasWeatherKeyword(userInput);
+  console.log("🔧 FALLBACK: Has weather keywords:", hasWeatherKeywords);
 
   // 3. Check ZIP code/address keywords
-  const zipCodeKeywords =
-    /zip|address|street|neighborhood|city|loc|local|location/i;
-  const hasZipCodeKeywords = zipCodeKeywords.test(userInput);
+  const hasZipCodeKeywords = ZIPCODE_KEYWORDS.some((keyword) =>
+    userInput.toLowerCase().includes(keyword)
+  );
 
   // 4. Check if it looks like just a city name OR extract city from phrases
   const justCity = userInput.match(/^([A-Za-zÀ-ÿ\s]+?)$/);
   const looksLikeCity =
     justCity &&
-    justCity[1].trim().split(/\s+/).length <= 3 &&
-    /^[A-Za-zÀ-ÿ\s]+$/.test(justCity[1].trim()) &&
-    justCity[1].trim().length > 2;
+    isValidCityName(justCity[1].trim()) &&
+    justCity[1].trim().split(/\s+/).length <= 3;
 
   // 5. Try to extract city from phrases like "forecast for [city]"
   let extractedCity = undefined;
   if (hasWeatherKeywords || hasZipCodeKeywords) {
     console.log("🔧 FALLBACK: Trying to extract city from phrase:", userInput);
 
-    // Patterns to extract city from phrases
-    const cityPatterns = [
-      // Patterns with intermediate words (for, in, of, em, para, de)
-      new RegExp(
-        `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+(?:for|in|of|em|para|de)\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
-        "i"
-      ),
-      new RegExp(
-        `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:for|in|of|em|para|de)\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
-        "i"
-      ),
-
-      // Direct patterns (without intermediate words)
-      new RegExp(
-        `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
-        "i"
-      ),
-      new RegExp(
-        `(?:${WEATHER_KEYWORDS.join("|")})\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
-        "i"
-      ),
-
-      // Specific patterns for weather queries
-      /(?:how\s+is\s+the?\s*weather\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-      /(?:temperature\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-      /(?:weather\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-
-      // Patterns for address queries
-      /(?:address)\s+(?:of|from)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-      /(?:street|neighborhood)\s+(?:of|from)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
-    ];
-
-    for (let i = 0; i < cityPatterns.length; i++) {
-      const pattern = cityPatterns[i];
-      const match = userInput.match(pattern);
+    // First, try to extract using the improved function
+    extractedCity = extractBestCityName(userInput);
+    if (extractedCity) {
       console.log(
-        `🔧 FALLBACK: Testing pattern ${i + 1}:`,
-        pattern.source,
-        "Result:",
-        match
+        "🔧 FALLBACK: City extracted using improved function:",
+        extractedCity
       );
-      if (match && match[1]) {
-        extractedCity = match[1].trim();
-        console.log("🔧 FALLBACK: City extracted from phrase:", extractedCity);
-        break;
+    } else {
+      // Fallback to regex patterns
+      const cityPatterns = [
+        // Patterns with intermediate words (for, in, of, em, para, de)
+        new RegExp(
+          `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+(?:for|in|of|em|para|de)\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+          "i"
+        ),
+        new RegExp(
+          `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:for|in|of|em|para|de)\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+          "i"
+        ),
+
+        // Direct patterns (without intermediate words)
+        new RegExp(
+          `(?:${WEATHER_KEYWORDS.join("|")})\\s+(?:do\\s+)?(?:tempo|clima)?\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+          "i"
+        ),
+        new RegExp(
+          `(?:${WEATHER_KEYWORDS.join("|")})\\s+([A-Za-zÀ-ÿ\\s]+?)(?:\\?|$|,|\\.)`,
+          "i"
+        ),
+
+        // Specific patterns for weather queries
+        /(?:how\s+is\s+the?\s*weather\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+        /(?:temperature\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+        /(?:weather\s+in)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+
+        // Patterns for address queries
+        /(?:address)\s+(?:of|from)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+        /(?:street|neighborhood)\s+(?:of|from)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$|,|\.)/i,
+      ];
+
+      for (let i = 0; i < cityPatterns.length; i++) {
+        const pattern = cityPatterns[i];
+        const match = userInput.match(pattern);
+        console.log(
+          `🔧 FALLBACK: Testing pattern ${i + 1}:`,
+          pattern.source,
+          "Result:",
+          match
+        );
+        if (match && match[1]) {
+          extractedCity = match[1].trim();
+          console.log(
+            "🔧 FALLBACK: City extracted from phrase:",
+            extractedCity
+          );
+          break;
+        }
       }
     }
   }
@@ -120,14 +144,8 @@ export const manualAnalysisFallback = async (userInput: string, env: Env) => {
     const cityName = extractedCity || (justCity ? justCity[1].trim() : "");
     console.log("🔧 FALLBACK: City detected/extracted, validating:", cityName);
 
-    // Check if the extracted city makes sense (doesn't contain words that aren't cities)
-    const cityWords = cityName.toLowerCase().split(/\s+/);
-
-    const hasNonCityWords = cityWords.some((word) =>
-      (NON_CITY_WORDS as readonly string[]).includes(word)
-    );
-
-    if (hasNonCityWords) {
+    // Use the new validation function
+    if (!isValidCityName(cityName)) {
       console.log(
         "🔧 FALLBACK: City contains words that aren't cities:",
         cityName
@@ -239,8 +257,37 @@ export const manualAnalysisFallback = async (userInput: string, env: Env) => {
     };
   }
 
+  // 8. Check for direct city + weather queries (like "previsao ibitinga")
+  if (hasWeatherKeywords && !extractedZipCode) {
+    // Try to extract city name from the input
+    const words = userInput.split(/\s+/);
+    const possibleCities = words.filter(
+      (word) =>
+        word.length > 2 &&
+        /^[A-Za-zÀ-ÿ]+$/.test(word) &&
+        isValidCityName(word) &&
+        !(ZIPCODE_KEYWORDS as readonly string[]).includes(word.toLowerCase())
+    );
+
+    if (possibleCities.length > 0) {
+      const cityName = possibleCities[possibleCities.length - 1]; // Get the last valid city name
+      console.log(
+        "🔧 FALLBACK: Direct city + weather query detected:",
+        cityName
+      );
+      return {
+        action: ACTIONS.CONSULT_WEATHER_DIRECT,
+        extractedZipCode: undefined,
+        extractedCity: cityName,
+        justification: "Direct city + weather query detected",
+        friendlyMessage: `Vou buscar a previsão do tempo para ${cityName}! 😊`,
+        foundCities: undefined,
+      };
+    }
+  }
+
   // 8. If has ZIP code keywords but no specific ZIP code
-  if (hasZipCodeKeywords && !zipCodeMatch) {
+  if (hasZipCodeKeywords && !extractedZipCode) {
     console.log("🔧 FALLBACK: ZIP code keywords detected, requesting ZIP code");
     return {
       action: ACTIONS.REQUEST_ZIP_CODE,
