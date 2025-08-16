@@ -543,14 +543,33 @@ const analiseManualFallback = async (entrada_usuario: string, env: Env) => {
   const cepMatch = entrada_usuario.match(/\d{5}-?\d{3}/);
   if (cepMatch) {
     console.log("🔧 FALLBACK: CEP identificado:", cepMatch[0]);
-    return {
-      acao: "CONSULTAR_CEP" as const,
-      cep_extraido: cepMatch[0].replace(/\D/g, ""),
-      cidade_extraida: undefined,
-      justificativa: "CEP identificado na entrada",
-      mensagem_amigavel: "Vou buscar as informações do endereço para você! 😊",
-      cidades_encontradas: undefined,
-    };
+
+    // Verificar se há menção a clima/tempo/previsão
+    const temClima =
+      /clima|tempo|previsão|previsao|temperatura|chuva|sol/i.test(
+        entrada_usuario
+      );
+
+    if (temClima) {
+      console.log("🔧 FALLBACK: CEP + clima detectado");
+      return {
+        acao: "CONSULTAR_CEP_E_PREVISAO" as const,
+        cep_extraido: cepMatch[0].replace(/\D/g, ""),
+        cidade_extraida: undefined,
+        justificativa: "CEP identificado com menção a clima/tempo",
+        mensagem_amigavel: `Vou buscar o endereço e a previsão do tempo para o CEP ${cepMatch[0]}! 😊`,
+      };
+    } else {
+      return {
+        acao: "CONSULTAR_CEP" as const,
+        cep_extraido: cepMatch[0].replace(/\D/g, ""),
+        cidade_extraida: undefined,
+        justificativa: "CEP identificado na entrada",
+        mensagem_amigavel:
+          "Vou buscar as informações do endereço para você! 😊",
+        cidades_encontradas: undefined,
+      };
+    }
   }
 
   // 2. Verificar palavras-chave de clima/tempo
@@ -884,11 +903,13 @@ const createDecisorInteligenteTool = (env: Env) =>
         prompt +=
           "- Se a entrada contém apenas CEP ou endereço → CONSULTAR_CEP\n";
         prompt +=
-          '- Se a entrada menciona "clima", "tempo", "previsão", "temperatura", "chuva", "sol" → CONSULTAR_CEP_E_PREVISAO\n';
+          '- Se a entrada menciona "clima", "tempo", "previsão", "temperatura", "chuva", "sol" E tem CEP → CONSULTAR_CEP_E_PREVISAO\n';
         prompt +=
-          "- Se a entrada pergunta sobre condições meteorológicas → CONSULTAR_CEP_E_PREVISAO\n";
+          "- Se a entrada pergunta sobre condições meteorológicas E tem CEP → CONSULTAR_CEP_E_PREVISAO\n";
         prompt +=
-          "- Se a entrada é sobre localização/endereço apenas → CONSULTAR_CEP\n\n";
+          "- Se a entrada é sobre localização/endereço apenas → CONSULTAR_CEP\n";
+        prompt +=
+          "- Se a entrada tem CEP E qualquer menção a clima/tempo → CONSULTAR_CEP_E_PREVISAO\n\n";
         prompt += "EXEMPLOS:\n";
         prompt += '- "CEP 01310-100" → CONSULTAR_CEP\n';
         prompt +=
@@ -897,6 +918,10 @@ const createDecisorInteligenteTool = (env: Env) =>
           '- "Como está o clima no CEP 01310-100?" → CONSULTAR_CEP_E_PREVISAO\n';
         prompt +=
           '- "Previsão do tempo para 01310-100" → CONSULTAR_CEP_E_PREVISAO\n';
+        prompt +=
+          '- "CEP 01310-100 com previsão do tempo" → CONSULTAR_CEP_E_PREVISAO\n';
+        prompt +=
+          '- "Quero o endereço e clima do CEP 20040-007" → CONSULTAR_CEP_E_PREVISAO\n';
         prompt +=
           '- "Como está o clima em São Paulo?" → CONSULTAR_PREVISAO_DIRETA\n';
         prompt += '- "Temperatura em São Paulo" → CONSULTAR_PREVISAO_DIRETA\n';
