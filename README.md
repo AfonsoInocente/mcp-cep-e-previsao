@@ -96,7 +96,7 @@ O sistema entende consultas em linguagem natural:
 ```
 "CEP 01310-100"
 "Quero saber o endereço do CEP 20040-007"
-"01310-100"
+"14910001"
 ```
 
 #### **Previsão do Tempo**
@@ -113,6 +113,8 @@ O sistema entende consultas em linguagem natural:
 ```
 "CEP 01310-100 com previsão do tempo"
 "Quero o endereço e clima do CEP 20040-007"
+"14940454 previsao"
+"clima 14910004"
 ```
 
 ### **Interface de Seleção**
