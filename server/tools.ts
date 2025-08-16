@@ -805,7 +805,7 @@ const analiseManualFallback = async (entrada_usuario: string, env: Env) => {
   };
 };
 
-const createDecisorInteligenteTool = (env: Env) =>
+export const createDecisorInteligenteTool = (env: Env) =>
   createTool({
     id: "DECISOR_INTELIGENTE",
     description:
@@ -1262,5 +1262,3 @@ export const tools = [
   createDecisorInteligenteTool,
   createTesteAITool,
 ];
-
-export { createDecisorInteligenteTool };
