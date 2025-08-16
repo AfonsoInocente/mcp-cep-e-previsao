@@ -18,18 +18,16 @@ import {
 import { z } from "zod";
 import { Env } from "./main";
 import {
-  createConsultarCEPTool,
-  createBuscarLocalidadeTool,
-  createPrevisaoTempoTool,
-  createDecisorInteligenteTool,
-} from "./tools";
+  createZipCodeLookupTool,
+  createCitySearchTool,
+  createWeatherForecastTool,
+  createIntelligentDecisorTool,
+} from "./tools/index.ts";
 
-const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
-  const consultarCEPStep = createStepFromTool(createConsultarCEPTool(env));
-  const buscarLocalidadeStep = createStepFromTool(
-    createBuscarLocalidadeTool(env)
-  );
-  const previsaoTempoStep = createStepFromTool(createPrevisaoTempoTool(env));
+const createZipCodeAndWeatherWorkflow = (env: Env) => {
+  const zipCodeStep = createStepFromTool(createZipCodeLookupTool(env));
+  const citySearchStep = createStepFromTool(createCitySearchTool(env));
+  const weatherStep = createStepFromTool(createWeatherForecastTool(env));
 
   return createWorkflow({
     id: "CONSULTAR_CEP_E_PREVISAO_WORKFLOW",
@@ -60,31 +58,31 @@ const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
         .optional(),
     }),
   })
-    .then(consultarCEPStep)
+    .then(zipCodeStep)
     .map(async ({ inputData }) => ({
       nomeCidade: inputData.city,
     }))
-    .then(buscarLocalidadeStep)
+    .then(citySearchStep)
     .map(async ({ inputData, getStepResult }) => {
-      const cepData = getStepResult(consultarCEPStep);
+      const zipCodeData = getStepResult(zipCodeStep);
       const localidades = inputData.localidades;
 
       // Busca a localidade que corresponde ao estado do CEP
       const localidadeEncontrada = localidades.find(
-        (localidade: any) => localidade.estado === cepData.state
+        (localidade: any) => localidade.estado === zipCodeData.state
       );
 
       return {
-        cep: cepData.cep,
-        state: cepData.state,
-        city: cepData.city,
-        neighborhood: cepData.neighborhood,
-        street: cepData.street,
+        cep: zipCodeData.cep,
+        state: zipCodeData.state,
+        city: zipCodeData.city,
+        neighborhood: zipCodeData.neighborhood,
+        street: zipCodeData.street,
         location_id: localidadeEncontrada?.id,
       };
     })
     .map(async ({ inputData, getStepResult }: any) => {
-      const cepData = getStepResult(consultarCEPStep);
+      const zipCodeData = getStepResult(zipCodeStep);
       const localidadeData = inputData;
 
       // Sempre prepara para buscar previsão do tempo se tem location_id
@@ -95,27 +93,27 @@ const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
       }
 
       return {
-        cep: cepData.cep,
-        state: cepData.state,
-        city: cepData.city,
-        neighborhood: cepData.neighborhood,
-        street: cepData.street,
+        cep: zipCodeData.cep,
+        state: zipCodeData.state,
+        city: zipCodeData.city,
+        neighborhood: zipCodeData.neighborhood,
+        street: zipCodeData.street,
         location_id: undefined,
         clima: undefined,
       };
     })
-    .then(previsaoTempoStep)
+    .then(weatherStep)
     .map(async ({ inputData, getStepResult }: any) => {
-      const cepData = getStepResult(consultarCEPStep);
-      const localidadeData = getStepResult(buscarLocalidadeStep);
+      const zipCodeData = getStepResult(zipCodeStep);
+      const localidadeData = getStepResult(citySearchStep);
 
       // Sempre retorna os dados básicos do CEP
       const result = {
-        cep: cepData.cep,
-        state: cepData.state,
-        city: cepData.city,
-        neighborhood: cepData.neighborhood,
-        street: cepData.street,
+        cep: zipCodeData.cep,
+        state: zipCodeData.state,
+        city: zipCodeData.city,
+        neighborhood: zipCodeData.neighborhood,
+        street: zipCodeData.street,
         location_id: localidadeData.location_id,
         clima: undefined,
       };
@@ -135,8 +133,8 @@ const createConsultarCepEPrevisaoWorkflow = (env: Env) => {
     .commit();
 };
 
-const createWorkflowPrincipalInteligente = (env: Env) => {
-  const decisorStep = createStepFromTool(createDecisorInteligenteTool(env));
+const createIntelligentMainWorkflow = (env: Env) => {
+  const decisionStep = createStepFromTool(createIntelligentDecisorTool(env));
 
   return createWorkflow({
     id: "WORKFLOW_PRINCIPAL_INTELIGENTE",
@@ -149,7 +147,7 @@ const createWorkflowPrincipalInteligente = (env: Env) => {
       mensagem_final: z.string(),
     }),
   })
-    .then(decisorStep as any)
+    .then(decisionStep as any)
     .map(async ({ inputData }) => {
       return {
         mensagem_inicial: inputData.mensagem_amigavel,
@@ -161,6 +159,6 @@ const createWorkflowPrincipalInteligente = (env: Env) => {
 };
 
 export const workflows = [
-  createConsultarCepEPrevisaoWorkflow,
-  createWorkflowPrincipalInteligente,
+  createZipCodeAndWeatherWorkflow,
+  createIntelligentMainWorkflow,
 ];

@@ -9,7 +9,7 @@ import { type Env as DecoEnv } from "./deco.gen.ts";
 import { StateSchema } from "./deco.gen.ts";
 
 import { workflows } from "./workflows.ts";
-import { tools } from "./tools.ts";
+import { tools } from "./tools/index.ts";
 import { views } from "./views.ts";
 
 /**
